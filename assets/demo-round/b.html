@@ -1,0 +1,51 @@
+<style>
+  .qb { width: 260px; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.06); overflow: hidden; font-family: system-ui, sans-serif; color: #15161a; }
+  .qb .img { aspect-ratio: 1/1; }
+  .qb .body { padding: 12px 14px 14px; }
+  .qb h3 { font-size: 15px; margin: 0; font-weight: 600; }
+  .qb .row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; }
+  .qb .price { font-weight: 700; }
+  .qb .old { color: #999; text-decoration: line-through; font-size: 13px; margin-left: 6px; }
+  .qb .sizes { display: flex; gap: 6px; margin: 12px 0; }
+  .qb .sizes button { width: 34px; height: 30px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 12px; }
+  .qb .sizes button.on { border-color: #15161a; background: #15161a; color: #fff; }
+  .qb .sizes button:disabled { color: #bbb; text-decoration: line-through; }
+  .qb .cta { width: 100%; border: 0; border-radius: 10px; padding: 11px; background: #1f4dd8; color: #fff; font-weight: 600; }
+  .qb.hover { box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 14px 34px rgba(0,0,0,.14); transform: translateY(-2px); }
+  .qb .cta.added { background: #1a8a57; }
+</style>
+<div class="vs-states">
+  <figure data-state="Default">
+    <div class="qb">
+      <div class="img swatch-img"></div>
+      <div class="body">
+        <h3>Abito Milano</h3>
+        <div class="row"><span><span class="price">€ 279</span><span class="old">€ 349</span></span></div>
+        <div class="sizes"><button>46</button><button>48</button><button>50</button><button disabled>52</button></div>
+        <button class="cta">Aggiungi al carrello</button>
+      </div>
+    </div>
+  </figure>
+  <figure data-state="Hover · size picked">
+    <div class="qb hover">
+      <div class="img swatch-img"></div>
+      <div class="body">
+        <h3>Abito Milano</h3>
+        <div class="row"><span><span class="price">€ 279</span><span class="old">€ 349</span></span></div>
+        <div class="sizes"><button>46</button><button class="on">48</button><button>50</button><button disabled>52</button></div>
+        <button class="cta">Aggiungi al carrello</button>
+      </div>
+    </div>
+  </figure>
+  <figure data-state="Added">
+    <div class="qb">
+      <div class="img swatch-img"></div>
+      <div class="body">
+        <h3>Abito Milano</h3>
+        <div class="row"><span><span class="price">€ 279</span><span class="old">€ 349</span></span></div>
+        <div class="sizes"><button>46</button><button class="on">48</button><button>50</button><button disabled>52</button></div>
+        <button class="cta added">✓ Aggiunto</button>
+      </div>
+    </div>
+  </figure>
+</div>

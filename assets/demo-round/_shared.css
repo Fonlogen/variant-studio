@@ -1,0 +1,7 @@
+.swatch-img { background:
+  repeating-linear-gradient(45deg, rgba(255,255,255,.05) 0 2px, transparent 2px 6px),
+  repeating-linear-gradient(-45deg, rgba(0,0,0,.12) 0 2px, transparent 2px 6px),
+  linear-gradient(160deg, #3b4252 0%, #232834 60%, #171b24 100%); }
+.swatch-img.light { background:
+  repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 2px, transparent 2px 6px),
+  linear-gradient(160deg, #b8a58a 0%, #8f7a5e 100%); }

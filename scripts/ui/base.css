@@ -1,0 +1,65 @@
+/* Variant Studio — base styles for HTML fragments.
+   Kept intentionally light so variants look like themselves, not like the tool.
+   Optional tokens (--vs-*) are available but never required. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+html {
+  -webkit-font-smoothing: antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  color: #16161a;
+  --vs-bg: #ffffff;
+  --vs-surface: #ffffff;
+  --vs-muted: #6b6b76;
+  --vs-border: #e6e6ea;
+  --vs-accent: #2f5bff;
+  --vs-radius: 12px;
+}
+html[data-theme="dark"] {
+  color: #ececf1;
+  --vs-bg: #0f0f12;
+  --vs-surface: #1a1a20;
+  --vs-muted: #9a9aa6;
+  --vs-border: #2a2a33;
+}
+img, svg, video { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ---- canvas behind the variant ---- */
+html[data-vs-canvas="light"] body { background: #f4f4f6; }
+html[data-vs-canvas="dark"] body { background: #0c0c0f; }
+html[data-vs-canvas="white"] body { background: #fff; }
+html[data-vs-canvas="checker"] body {
+  background-color: #fff;
+  background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+  background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+html[data-theme="dark"]:not([data-vs-canvas]) body { background: var(--vs-bg); }
+
+/* ---- layout by kind ---- */
+html[data-vs-kind="component"] #vs-root {
+  padding: 40px 24px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 24px;
+}
+html[data-vs-kind="section"] #vs-root { width: 100%; }
+html[data-vs-kind="page"] #vs-root { width: 100%; min-height: 100vh; }
+
+/* ---- states strip: show several states of one component side by side ----
+   <div class="vs-states">
+     <figure data-state="Default">…</figure>
+     <figure data-state="Hover">…</figure>
+   </div> */
+.vs-states { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; justify-content: center; }
+.vs-states > figure { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.vs-states > figure::before {
+  content: attr(data-state);
+  font: 600 10.5px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--vs-muted);
+}
+
+/* ---- wireframe helpers (for low-fidelity layout rounds) ---- */
+.wf-box { border: 1.5px dashed #b9b9c3; border-radius: 8px; background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,.03) 8px 16px); min-height: 48px; display: grid; place-items: center; color: #8a8a95; font-size: 12px; }
+.wf-line { height: 10px; border-radius: 5px; background: #e4e4ea; margin: 6px 0; }
+.wf-line.short { width: 40%; } .wf-line.mid { width: 70%; }
+.wf-img { aspect-ratio: 4/3; border-radius: 8px; background: linear-gradient(135deg, #e9e9ef, #d9d9e2); }

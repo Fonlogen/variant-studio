@@ -1,0 +1,12 @@
+{
+  "title": "Product card",
+  "question": "Which product card should we use in the category grid?",
+  "context": "Same product, three directions: editorial, quick-buy, compact.",
+  "kind": "component",
+  "viewports": ["auto", "mobile"],
+  "variants": [
+    { "id": "a", "label": "Editorial", "notes": "Photo first, quiet type. Best for premium feel; add-to-cart only on the product page." },
+    { "id": "b", "label": "Quick buy", "notes": "Sizes and add-to-cart on the card. Shows hover and added states." },
+    { "id": "c", "label": "Compact", "notes": "Horizontal layout for dense lists and mobile search results." }
+  ]
+}
