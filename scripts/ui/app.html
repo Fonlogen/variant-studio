@@ -14,7 +14,7 @@
   --line: #1c1c1c; --line-2: #2a2a2a; --line-3: #3a3a3a;
   --ink: #ededed; --ink-2: #a3a3a3; --ink-3: #6b6b6b;
   --accent: #ff6a1a; --accent-ink: #000; --accent-soft: rgba(255,106,26,.12); --accent-line: rgba(255,106,26,.45);
-  --good: #3ecf8e; --bad: #ff5555; --warn: #f5a524;
+  --good: #3ecf8e; --bad: #ff5555; --warn: #f5a524; --good-soft: rgba(62,207,142,.10); --good-line: rgba(62,207,142,.55);
   --r: 4px; --r-sm: 2px; --r-lg: 6px;
   --shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 0 1px var(--line-2);
   --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -27,7 +27,7 @@
   --line: #e6e6e6; --line-2: #d6d6d6; --line-3: #bdbdbd;
   --ink: #0a0a0a; --ink-2: #505050; --ink-3: #8a8a8a;
   --accent: #f25c05; --accent-ink: #fff; --accent-soft: rgba(242,92,5,.10); --accent-line: rgba(242,92,5,.45);
-  --good: #16a34a; --bad: #dc2626; --warn: #b45309;
+  --good: #16a34a; --bad: #dc2626; --warn: #b45309; --good-soft: rgba(22,163,74,.08); --good-line: rgba(22,163,74,.5);
   --shadow: 0 12px 40px rgba(0,0,0,.12), 0 0 0 1px var(--line-2);
   color-scheme: light;
 }
@@ -98,7 +98,7 @@ body.rail-hidden #rail { border: 0; }
 .tr-n { font: 500 10.5px/1 var(--mono); color: var(--ink-3); min-width: 26px; }
 .st { width: 12px; height: 12px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line-3); border-radius: var(--r-sm); }
 .st svg { width: 9px; height: 9px; }
-.st.choose { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.st.choose { background: var(--good); border-color: var(--good); color: #000; }
 .st.revise, .st.remix { border-color: var(--accent-line); color: var(--accent); }
 .st.regenerate { border-color: var(--ink-3); color: var(--ink-3); }
 .st.gen { border-style: dashed; animation: spin 2.4s linear infinite; }
@@ -139,8 +139,8 @@ input.vpw { width: 56px; height: 26px; padding: 0 6px; font: 500 11px var(--mono
 .tabs { display: inline-flex; gap: 2px; }
 .tabs button { border: 1px solid var(--line-2); background: var(--panel); border-radius: var(--r); height: 26px; min-width: 28px; padding: 0 8px; font: 600 11.5px/1 var(--mono); color: var(--ink-2); }
 .tabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.approved-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--r); max-width: 1800px; margin: 0 auto 10px; flex-wrap: wrap; }
-.approved-bar .ok { width: 20px; height: 20px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); border-radius: var(--r-sm); }
+.approved-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--good-line); background: var(--good-soft); border-radius: var(--r); max-width: 1800px; margin: 0 auto 10px; flex-wrap: wrap; }
+.approved-bar .ok { width: 20px; height: 20px; display: grid; place-items: center; background: var(--good); color: #000; border-radius: var(--r-sm); }
 .approved-bar b { font-weight: 600; }
 .approved-bar small { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
 
@@ -150,6 +150,16 @@ input.vpw { width: 56px; height: 26px; padding: 0 6px; font: 500 11px var(--mono
 .card.active { border-color: var(--line-3); }
 .card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .card.down { opacity: .55; }
+.card.approved { border-color: var(--good); box-shadow: 0 0 0 1px var(--good); }
+.card.approved .letter { background: var(--good); color: #000; border-color: var(--good); }
+.card.approved .card-h { background: var(--good-soft); }
+.ap-badge { display: none; align-items: center; gap: 4px; font: 600 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--good); border: 1px solid var(--good-line); border-radius: var(--r-sm); padding: 3px 5px; white-space: nowrap; }
+.ap-badge svg { width: 10px; height: 10px; }
+.card.approved .ap-badge { display: inline-flex; }
+.card.just-approved { animation: approvedPulse 1.6s ease-out 1; }
+@keyframes approvedPulse { 0% { box-shadow: 0 0 0 1px var(--good), 0 0 0 0 var(--good-line); } 40% { box-shadow: 0 0 0 1px var(--good), 0 0 0 14px rgba(62,207,142,0); } 100% { box-shadow: 0 0 0 1px var(--good); } }
+.lv-item.approved { border-color: var(--good-line); }
+.lv-item.approved .letter { background: var(--good); color: #000; border-color: var(--good); }
 .card-h { cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 5px 0 6px; border-bottom: 1px solid var(--line); min-width: 0; }
 .letter { min-width: 24px; height: 24px; padding: 0 4px; flex: none; border-radius: var(--r-sm); display: grid; place-items: center; font: 600 12px/1 var(--mono); background: var(--panel-3); color: var(--ink); border: 1px solid var(--line-2); }
 .card.sel .letter { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -319,6 +329,8 @@ body.insp-open #insp { display: flex; }
 
 #toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-70px); z-index: 80; background: var(--ink); color: var(--bg); padding: 7px 12px; border-radius: var(--r); font-weight: 500; font-size: 12.5px; transition: transform .2s; max-width: 90vw; }
 #toast.show { transform: translateX(-50%) translateY(0); }
+#toast.good { background: var(--good); color: #000; font-weight: 600; font-size: 13.5px; padding: 10px 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+#toast.good svg { width: 16px; height: 16px; }
 #banner { display: none; background: color-mix(in srgb, var(--warn) 18%, var(--panel)); color: var(--ink); padding: 6px 14px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
 #banner.show { display: block; }
 #newpill { position: sticky; top: 0; z-index: 5; display: none; margin: 0 auto 10px; width: max-content; }
@@ -517,7 +529,7 @@ const h = (tag, attrs = {}, ...kids) => {
   for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
   return el;
 };
-const toast = (msg) => { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2600); };
+const toast = (msg, kind = '') => { const el = $('#toast'); el.className = kind; if (kind === 'good') el.innerHTML = I.check + '<span></span>', el.lastChild.textContent = msg; else el.textContent = msg; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), kind ? 4200 : 2600); };
 const rnum = (id) => { const n = parseInt(id, 10); return isNaN(n) ? '•' : '#' + n; };
 const letterOf = (c, it) => {
   if (c.kind === 'shortlist') return `${rnum(it.r.id).slice(1)}${it.v.id.length <= 2 ? it.v.id.toUpperCase() : ''}`;
@@ -872,6 +884,7 @@ function exportPng(it) { const f = mainFrame(it.fk); if (!f) return toast('Open 
 
 // ---------------- round view ----------------
 let lastSig = '';
+let justApproved = null;
 function renderRound(force = false) {
   const c = ctx();
   renderTopbar(c);
@@ -972,6 +985,7 @@ function buildApproved(c) {
   const bar = h('div', { class: 'approved-bar' },
     h('span', { class: 'ok', html: I.check }),
     h('div', {}, h('b', {}, `Approved: ${it.v.id.toUpperCase()} — ${it.v.label}`), ' ', h('small', {}, (d.approved?.at || d.at || '').slice(0, 16).replace('T', ' '))),
+    STATIC ? null : h('span', { class: 'tag', style: d.consumed ? 'color:var(--good);border-color:var(--good-line)' : '' }, d.consumed ? '✓ received by the agent' : 'waiting for the agent…'),
     h('span', { class: 'spacer', style: 'flex:1' }),
     others > 0 ? h('button', { class: 'btn sm', html: I.eye + `<span>Show discarded (${others})</span>`, onclick: () => { S.showDiscarded[c.r.id] = true; renderRound(true); } }) : null);
   const g = h('div', { class: 'grid single' }); g.append(buildCard(c, it, { big: true }));
@@ -987,7 +1001,7 @@ function buildList(c) {
     if (it.v.ready) { const f = makeFrame(it, { thumb: true }); thumb.append(f.wrap); }
     const vd = vdata(it.fk);
     const picked = draft(c.key).selected.includes(it.key);
-    items.append(h('button', { class: 'lv-item' + (picked ? ' sel' : ''), 'data-key': it.key, 'aria-current': String(it.fk === S.listSel), onclick: () => { S.listSel = it.fk; S.active = it.fk; renderRound(); } },
+    items.append(h('button', { class: 'lv-item' + (picked ? ' sel' : '') + (approvedOf(it.r) === it.v.id ? ' approved' : ''), 'data-key': it.key, 'aria-current': String(it.fk === S.listSel), onclick: () => { S.listSel = it.fk; S.active = it.fk; renderRound(); } },
       thumb,
       h('div', { class: 'lv-meta' }, h('b', {}, labelOf(it)), h('span', {}, h('span', { class: 'letter', style: 'min-width:18px;height:18px;font-size:10px' }, letterOf(c, it)),
         vd.rating > 0 ? h('span', { html: I.up, style: 'color:var(--good);display:grid' }) : vd.rating < 0 ? h('span', { html: I.down, style: 'color:var(--bad);display:grid' }) : null,
@@ -1026,6 +1040,7 @@ function buildCard(c, it, opts = {}) {
   card.append(h('div', { class: 'card-h', onclick: (e) => { if (!e.target.closest('button,a,select,.badge')) toggleSel(key, fk); } },
     h('button', { class: 'letter', title: 'Select', onclick: () => toggleSel(key, fk) }, letterOf(c, it)),
     h('div', { class: 'card-t' }, h('b', {}, labelOf(it)), sub ? h('small', {}, sub) : null),
+    h('span', { class: 'ap-badge', title: 'Approved', html: I.check + 'Approved' }),
     h('button', { class: 'badge err', 'data-err': fk, onclick: () => toast(framesOf(fk).flatMap(f => f.errors).slice(-3).join(' · ')) }),
     h('button', { class: 'badge aud', 'data-aud': fk, onclick: () => { S.active = fk; S.inspTab = 'audit'; toggleInsp(true); } }),
     h('div', { class: 'card-a' }, ...actions.filter(Boolean))));
@@ -1053,7 +1068,10 @@ function paintCard(card) {
   const key = card.dataset.key, fk = card.dataset.fk;
   const d = draft(c.key); const vd = vdata(fk);
   const sel = d.selected.includes(key);
-  card.classList.toggle('sel', sel);
+  const isAp = approvedOf(round(fk.slice(0, fk.indexOf('/')))) === fk.slice(fk.indexOf('/') + 1);
+  card.classList.toggle('approved', isAp);
+  card.classList.toggle('just-approved', isAp && justApproved === fk);
+  card.classList.toggle('sel', sel && !isAp);
   card.classList.toggle('active', S.active === fk);
   card.classList.toggle('down', vd.rating < 0 && !sel);
   card.querySelector('[data-rate=up]')?.classList.toggle('on-up', vd.rating > 0);
@@ -1401,13 +1419,18 @@ async function submit(action) {
       const ta = h('textarea'); ta.value = text; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }
     c.target.decision = { ...payload, consumed: false };
-    toast('Decision copied. Paste it into the chat with your agent.');
-    renderRail(); renderDock();
+    if (action === 'choose') { const it = c.items.find(x => x.key === d.selected[0]); justApproved = it ? it.fk : null; setTimeout(() => { justApproved = null; }, 1700); toast(`Approved ${shortKey(d.selected[0])} — decision copied, paste it into the chat`, 'good'); }
+    else toast('Decision copied. Paste it into the chat with your agent.');
+    renderRail(); renderRound(true);
     return;
   }
   const res = await fetch('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   if (!res.ok) { toast('Error ' + res.status); return; }
-  toast('Sent to the agent');
+  if (action === 'choose') {
+    const k = d.selected[0]; const it = c.items.find(x => x.key === k);
+    justApproved = it ? it.fk : null; setTimeout(() => { justApproved = null; }, 1700);
+    toast(`Approved ${shortKey(k)}${it ? ' — ' + labelOf(it) : ''} · sent to the agent`, 'good');
+  } else toast({ revise: 'Change request sent to the agent', remix: 'Combine request sent to the agent', regenerate: 'Start-over request sent to the agent' }[action] || 'Sent to the agent');
   if (c.kind === 'discarded' || c.kind === 'shortlist') { d.selected = []; d.note = ''; d.refs = []; persist(); }
   S.follow = true;
   note.blur(); dockHold = false;
