@@ -4,6 +4,7 @@ Every round lives in `.variant-studio/rounds/<NNN-slug>/`. `STUDIO new` creates 
 
 ```json
 {
+  "group": "Catalog / Product card",
   "title": "Product card",
   "question": "Which card should we use in the category grid?",
   "context": "Same product, three directions. Grid is 4 columns on desktop, 2 on mobile.",
@@ -25,7 +26,8 @@ Every round lives in `.variant-studio/rounds/<NNN-slug>/`. `STUDIO new` creates 
 
 | Field | Meaning |
 |---|---|
-| `title` | Short name shown in the rounds list. |
+| `group` | `"Group / Subgroup"` — where the round sits in the sidebar tree (product area / design subject). Inherited from `parent` by `STUDIO new`. A separate `"subgroup"` field is also accepted. |
+| `title` | Short name of the design subject shown in the rounds list. |
 | `question` | The decision the user is making. Shown as the page headline. |
 | `context` | One line of extra context under the headline. |
 | `kind` | `component` (centred, auto height), `section` (full width, auto height), `page` (fixed viewport, scrolls). Default `component`. |
@@ -34,7 +36,7 @@ Every round lives in `.variant-studio/rounds/<NNN-slug>/`. `STUDIO new` creates 
 | `head` | Extra things injected into fragment variants: `.css` URLs become `<link>`, `.js`/`.mjs` become `<script>`, strings starting with `<` are inserted verbatim. `/p/<path>` serves a file from the project root. |
 | `variants[].id` | File name without `.html`. Short ids (`a`, `b`) show as big letters; longer ids (`one-step`) are shown by number. |
 | `variants[].label` | Name of the idea. |
-| `variants[].notes` | One-line rationale or trade-off, shown on the card. |
+| `variants[].notes` | One-sentence rationale or trade-off, shown behind the card's info toggle. |
 | `variants[].url` | Render an external page (dev server, Storybook) instead of a file. |
 
 ## Automatic includes (fragments only)
@@ -44,7 +46,7 @@ Every round lives in `.variant-studio/rounds/<NNN-slug>/`. `STUDIO new` creates 
 3. `<round>/_shared.css` — CSS shared by the variants of this round.
 4. Everything in `head`.
 
-Files that start with `_` are never treated as variants, so use them for shared assets (`_shared.css`, `_data.js`).
+Files that start with `_` are never treated as variants, so use them for shared assets (`_shared.css`, `_data.js`). Reference images uploaded by the user are stored in `<round>/_refs/`.
 
 ## Server routes (for linking assets)
 
@@ -54,3 +56,4 @@ Files that start with `_` are never treated as variants, so use them for shared 
 | `/p/<path>` | Files from the project root (`.env*`, `.git`, `.ssh`, `*.pem`, `*.key` are blocked). |
 | `/_ui/frame.js` | The preview script (public, so external pages can include it). |
 | `/v/<round>/<file>` | A rendered variant. Handy to open one variant alone. |
+| `/x/<round>/<file>` | The same variant as a standalone, downloadable HTML file (CSS inlined, no preview script). |

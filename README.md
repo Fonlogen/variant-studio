@@ -1,80 +1,113 @@
-# Variant Studio
+# Variant Studio 2.0
 
-Skill per agenti AI (Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI…) che crea **varianti di design di qualsiasi elemento** — un bottone, una card, un form, una sezione o una pagina intera — le mostra in una galleria live nel browser e ti fa scegliere, commentare o combinare. L'agente riceve la tua decisione in formato strutturato e continua da lì.
+A skill for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI…) that generates **design variants of any UI element** — a button, a card, a form, a section or a whole page — shows them in a live browser gallery, and lets you pick, comment, tune and combine them. The agent receives your decision as structured JSON and continues from there.
 
-Ispirata al Visual Companion di [superpowers](https://github.com/obra/superpowers), riscritta da zero.
+The skill is installed and invoked as **`variant-studio`** (e.g. `/variant-studio` in Claude Code).
 
-## Cosa fa in più rispetto al Visual Companion
+## What's new in 2.0
 
-| | Visual Companion | Variant Studio |
-|---|---|---|
-| Granularità | Soprattutto pagine/layout | Componenti, sezioni e pagine, con layout dedicati per ognuno |
-| Storico | Mostra solo l'ultimo file | Round numerati, cronologia con "da #N", nulla viene sovrascritto |
-| Viste | Una pagina | Griglia, affiancate, una alla volta, confronto a tendina (swipe) |
-| Viewport | — | Adatta / mobile / tablet / laptop / desktop / larghezza personalizzata, zoom |
-| Tema | — | Chiaro/scuro della variante + sfondo (grigio, bianco, scuro, trasparente) |
-| Feedback | Click su un'opzione | Selezione multipla, 👍/👎, nota per variante, **commento su un singolo elemento** (con selettore CSS), nota generale |
-| Azioni | — | Approva · Chiedi modifiche · Combina · Rifai tutto |
-| Attesa | L'agente legge gli eventi al turno dopo | `wait` blocca finché non decidi (oppure lettura differita) |
-| Live | Nuovo file = nuova schermata | Ricarica solo la variante modificata, placeholder mentre l'agente genera |
-| Errori | — | Errori JS delle anteprime segnalati a te e all'agente |
-| Stack reali | — | CSS del progetto via `/p/…`, Tailwind, varianti da URL (Storybook/dev server) |
-| Piattaforme | Script bash | Un solo file Node senza dipendenze: macOS, Linux, Windows |
-| Senza server | — | `build` crea una galleria HTML statica; la decisione va negli appunti |
-| Lingua UI | Inglese | Italiano/inglese automatico |
+- **New look**: OLED-black studio (with an optional neutral light theme), squared components, orange accent, English-only UI.
+- **Less noise**: compact top bar you can hide (`H`), a centered prompt bar that auto-hides and can be pinned (`P`), descriptions behind an info toggle, every tool reachable from the **command palette** (`Ctrl/⌘ K`).
+- **Grouped history**: rounds are organised as *group → subgroup → iterations* (`--group "Checkout / Pay button"`), with filtering and collapsible groups.
+- **Approved rounds** open on the approved design; *Show discarded* reveals the other variants so you can reuse them in a new prompt.
+- **List layout**: small live thumbnails on the left, the selected variant in detail on the right.
+- **In-app expand**: focus one variant full-size inside the studio and go back with `Esc` — no new tabs or windows.
+- **Zoom** for all cards (`+` `−` `0`) or for a single card.
+- **Live token tweaking**: the Inspector lists the variant's CSS custom properties with color pickers and nudgers; overrides are sent to the agent.
+- **Accessibility audit** per variant: contrast, touch targets (mobile/tablet), missing alt text and labels, horizontal overflow.
+- **Inline text editing**: rewrite copy directly in the preview; the agent receives the exact text.
+- **Reference images**: paste, drop or attach images to the prompt as visual direction.
+- **Cross-round shortlist**: star variants from any round, compare them together and send them as a base.
+- **Quick chips** for common requests ("More minimal", "Bigger type", "More contrast"…).
+- **Export** any variant as standalone HTML or PNG.
 
-## Installazione
+## Features
 
-Serve Node.js 18 o superiore. Copia la cartella `variant-studio` in:
+| | |
+|---|---|
+| Granularity | Components, sections and pages, each with its own preview layout |
+| History | Numbered rounds grouped by area and subject; iterations nest under their parent; nothing is overwritten |
+| Layouts | Grid · Side by side · One at a time · Swipe compare · List · In-app expand |
+| Viewport | Fit / mobile / tablet / laptop / desktop / custom width, global and per-card zoom |
+| Theme | Light/dark for the variants + canvas (grey, white, dark, transparent); OLED or light studio |
+| Feedback | Multi-select, 👍/👎, per-variant notes, **comments on a single element** (with CSS selector), inline text edits, token overrides, reference images, general note |
+| Actions | Approve · Request changes · Combine · Start over · Reuse discarded · Send shortlist |
+| Waiting | `wait` blocks until you decide (or read later with `decision`) |
+| Live | Only the changed variant reloads; placeholders while the agent writes |
+| Quality | JS errors and accessibility issues reported to you and to the agent |
+| Real stacks | Project CSS via `/p/…`, Tailwind, URL variants (Storybook / dev server) |
+| Platforms | One dependency-free Node file: macOS, Linux, Windows |
+| No server | `build` writes a static gallery; decisions are copied to the clipboard |
 
-- **Claude Code**: `~/.claude/skills/variant-studio/` (tutti i progetti) oppure `.claude/skills/variant-studio/` (solo un progetto). In alternativa, su claude.ai carica il file `.skill`.
-- **Codex / Cursor**: `.agents/skills/variant-studio/` nel repository oppure `~/.agents/skills/variant-studio/`.
+## Installation
+
+Requires Node.js 18 or newer. Copy the `variant-studio` folder to:
+
+- **Claude Code**: `~/.claude/skills/variant-studio/` (all projects) or `.claude/skills/variant-studio/` (one project).
+- **Codex / Cursor**: `.agents/skills/variant-studio/` in the repository or `~/.agents/skills/variant-studio/`.
 - **Gemini CLI**: `~/.gemini/skills/variant-studio/`.
-- **Altri agenti**: incolla il contenuto di `agents-snippet.md` in `AGENTS.md` (o nel file di istruzioni dell'agente) correggendo il percorso.
+- **Other agents**: paste `agents-snippet.md` into `AGENTS.md` (or the agent's instructions file) and fix the path.
 
-Prova rapida dalla cartella di un progetto:
+Quick check from a project folder:
 
 ```bash
 node ~/.claude/skills/variant-studio/scripts/studio.mjs start --project . --open
 node ~/.claude/skills/variant-studio/scripts/studio.mjs demo --project .
 ```
 
-## Come si usa
+## Usage
 
-Chiedi all'agente, ad esempio:
+Ask your agent, for example:
 
-- «Fammi 3 varianti della product card per la pagina categoria»
-- «Proponimi alternative per il bottone "Aggiungi al carrello", con stati hover e disabilitato»
-- «Mostrami due layout per il checkout, su mobile»
+- "Give me 3 variants of the product card for the category page"
+- "Show me alternatives for the 'Add to cart' button, with hover and disabled states"
+- "Two checkout layouts, on mobile"
 
-Nel browser: clicca la lettera (o premi 1–9) per selezionare, usa 👍/👎 e le note, premi **C** e clicca un elemento per commentarlo, poi invia con uno dei pulsanti in basso (o Ctrl/⌘+Invio).
+In the browser: click a card's letter (or press 1–9) to select it, use 👍/👎, ★ and notes, press **C** and click an element to comment on it, **E** to rewrite text, **I** to tune tokens or read the audit, then send with the prompt bar (or `Ctrl/⌘ Enter`).
 
-Scorciatoie: `G` griglia · `S` affiancate · `F` una alla volta · `X` confronto · `C` commenta elemento · `D` chiaro/scuro · `←/→` nella vista singola · `Esc` esce dalla modalità commento.
+### Shortcuts
 
-## File creati nel progetto
+| Key | Action |
+|---|---|
+| `G` `S` `F` `X` `L` | Grid · Side by side · One at a time · Compare · List |
+| `Z` / `Esc` | Expand the active card / go back |
+| `←` `→` | Previous / next variant (one at a time, list, expanded) |
+| `+` `−` `0` | Zoom all cards in / out / fit |
+| `1`–`9` | Select a variant |
+| `C` · `E` · `I` | Comment on element · Edit text · Inspector |
+| `N` · `D` | Show all descriptions · Variant light/dark |
+| `/` · `P` | Open the prompt · Pin the prompt bar |
+| `H` · `R` · `U` | Hide top bar · Toggle sidebar · Studio light/OLED |
+| `Ctrl/⌘ K` | Command palette |
+| `Ctrl/⌘ Enter` | Send the decision |
 
-Tutto finisce in `.variant-studio/` (aggiunto automaticamente al `.gitignore` se il progetto è un repository git):
+## Files created in your project
+
+Everything goes into `.variant-studio/` (added to `.gitignore` automatically when the project is a git repository):
 
 ```
 .variant-studio/
-  global.css            # (opzionale) token del tuo design system per tutti i round
+  global.css            # (optional) your design-system tokens for every round
   rounds/001-product-card/
-    round.json          # domanda, tipo, etichette e note delle varianti
+    round.json          # group, question, kind, variant labels and notes
     a.html b.html c.html
-    decision.json       # la tua scelta
-  state/                # server.json, log, storico decisioni, errori
+    _refs/              # reference images you attached
+    decision.json       # your decision
+  state/                # server.json, logs, decision history, errors
 ```
 
-## Struttura della skill
+## Skill layout
 
 ```
 variant-studio/
-  SKILL.md                 istruzioni per l'agente
-  agents-snippet.md        testo per AGENTS.md / GEMINI.md
-  scripts/studio.mjs       CLI + server (zero dipendenze)
-  scripts/ui/app.html      galleria
-  scripts/ui/frame.js      script iniettato nelle anteprime
-  scripts/ui/base.css      stile base dei frammenti
-  references/              schema round.json, piattaforme, framework
-  assets/demo-round/       round di esempio
+  SKILL.md                 instructions for the agent
+  agents-snippet.md        text for AGENTS.md / GEMINI.md
+  scripts/studio.mjs       CLI + server (zero dependencies)
+  scripts/ui/app.html      the studio
+  scripts/ui/frame.js      script injected into previews (comments, edits, tokens, audit, export)
+  scripts/ui/base.css      base styles for fragments
+  references/              round.json schema, platforms, frameworks
+  assets/demo-round/       sample round
 ```
+
+Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), rewritten from scratch.

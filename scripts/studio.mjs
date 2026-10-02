@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Variant Studio — zero-dependency design-variant previewer for coding agents.
+// Variant Studio 2.0 — zero-dependency design-variant previewer for coding agents.
 // Node >= 18. Works on macOS, Linux, Windows. No bash required.
 //
 //   node studio.mjs start   [--project DIR] [--port N] [--host H] [--url-host H] [--open] [--foreground] [--idle MIN]
-//   node studio.mjs new     <slug> [--title T] [--question Q] [--kind component|section|page] [--variants a,b,c] [--viewports mobile,desktop]
+//   node studio.mjs new     <slug> [--group "Area/Sub"] [--title T] [--question Q] [--kind component|section|page] [--variants a,b,c] [--viewports mobile,desktop] [--parent ID]
 //   node studio.mjs wait    [--round ID] [--timeout SEC]
 //   node studio.mjs decision [--round ID]
-//   node studio.mjs status | list | open | stop | errors | build [--out FILE] | demo
+//   node studio.mjs status | list | groups | open | stop | errors | build [--out FILE] | demo
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -99,8 +99,11 @@ function loadRound(id) {
   });
   const decision = readJSON(path.join(dir, 'decision.json'));
   const stat = fs.statSync(dir);
+  const [group, subgroup] = splitGroup(m);
   return {
     id,
+    group,
+    subgroup,
     title: m.title || id.replace(/^\d+-/, '').replace(/[-_]/g, ' '),
     question: m.question || '',
     kind: ['component', 'section', 'page'].includes(m.kind) ? m.kind : 'component',
@@ -112,6 +115,12 @@ function loadRound(id) {
     decision,
     created: m.created || new Date(stat.birthtimeMs || stat.ctimeMs).toISOString(),
   };
+}
+function splitGroup(m) {
+  const parts = String(m.group || '').split('/').map((s) => s.trim()).filter(Boolean);
+  const group = parts[0] || '';
+  const subgroup = String(m.subgroup || '').trim() || parts.slice(1).join(' / ');
+  return [group, subgroup];
 }
 function prettyId(id) {
   if (id.length <= 2) return id.toUpperCase();
@@ -148,7 +157,7 @@ function renderVariant(roundId, file, opts = {}) {
   const manifest = readJSON(path.join(dir, 'round.json'), {}) || {};
   const kind = ['component', 'section', 'page'].includes(manifest.kind) ? manifest.kind : 'component';
   const raw = fs.readFileSync(path.join(dir, file), 'utf8');
-  const frameJs = opts.inline ? `<script>${fs.readFileSync(path.join(UI, 'frame.js'), 'utf8')}</script>` : `<script src="/_ui/frame.js"></script>`;
+  const frameJs = opts.bare ? '' : opts.inline ? `<script>${fs.readFileSync(path.join(UI, 'frame.js'), 'utf8')}</script>` : `<script src="/_ui/frame.js"></script>`;
   const isDoc = /^\s*(<!doctype|<html)/i.test(raw);
   if (isDoc) {
     // inject as early as possible so errors thrown by the page are captured
@@ -241,7 +250,7 @@ async function serve() {
     }
     if (!authed) {
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('Variant Studio: missing or wrong key. Open the full URL printed by `studio.mjs start` (it contains ?k=...).');
+      return res.end('Variant Studio 2.0: missing or wrong key. Open the full URL printed by `studio.mjs start` (it contains ?k=...).');
     }
     const setCookie = u.searchParams.get('k') === key ? { 'Set-Cookie': `vs_key=${key}; Path=/; SameSite=Strict; HttpOnly` } : {};
 
@@ -270,12 +279,43 @@ async function serve() {
         const round = loadRound(id);
         const files = {};
         for (const v of round.variants) if (v.file) files[v.id] = path.join(ROUNDS, id, v.file);
-        const decision = { ...body, id: crypto.randomBytes(6).toString('hex'), at: now(), consumed: false, files, round_dir: path.join(ROUNDS, id) };
+        // cross-round picks (shortlist) use "round/variant" keys
+        for (const key of body.selected || []) {
+          const [rid, vid] = String(key).split('/');
+          if (!vid || !SAFE.test(rid)) continue;
+          const other = loadRound(rid);
+          const v = other && other.variants.find((x) => x.id === vid);
+          if (v && v.file) files[key] = path.join(ROUNDS, rid, v.file);
+        }
+        // an approval survives later decisions on the same round (e.g. reusing discarded variants)
+        const prev = round.decision;
+        const approved = body.action === 'choose' ? { variant: body.selected?.[0], at: now() } : (prev && (prev.approved || (prev.action === 'choose' ? { variant: prev.selected?.[0], at: prev.at } : null))) || undefined;
+        const references = (body.references || []).filter((r) => /^_refs\/[\w.-]+$/.test(r)).map((r) => path.join(ROUNDS, id, r));
+        const decision = { ...body, ...(references.length ? { references } : { references: undefined }), ...(approved ? { approved } : {}), id: crypto.randomBytes(6).toString('hex'), at: now(), consumed: false, files, round_dir: path.join(ROUNDS, id) };
         writeJSON(path.join(ROUNDS, id, 'decision.json'), decision);
         fs.appendFileSync(EVENTS, JSON.stringify({ type: 'decision', round: id, action: body.action, selected: body.selected, at: decision.at }) + '\n');
         broadcast('decision', { round: id });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: true, id: decision.id }));
+      }
+      if (p === '/api/ref' && req.method === 'POST') {
+        const id = u.searchParams.get('round') || '';
+        if (!SAFE.test(id) || !fs.existsSync(path.join(ROUNDS, id))) { res.writeHead(400); return res.end('bad round'); }
+        const body = JSON.parse(await readBody(req, 16e6));
+        const m = String(body.data || '').match(/^data:image\/(png|jpe?g|webp|gif|avif);base64,(.+)$/);
+        if (!m) { res.writeHead(415); return res.end('unsupported image'); }
+        const base = String(body.name || 'reference').replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'reference';
+        const rel = `_refs/${Date.now().toString(36)}-${base}.${m[1].replace('jpeg', 'jpg')}`;
+        fs.mkdirSync(path.join(ROUNDS, id, '_refs'), { recursive: true });
+        fs.writeFileSync(path.join(ROUNDS, id, rel), Buffer.from(m[2], 'base64'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, path: rel, url: `/r/${id}/${rel}` }));
+      }
+      if (p.startsWith('/x/')) {
+        const [, , roundId, file] = p.split('/');
+        if (!SAFE.test(roundId || '') || !/^[\w.-]+\.html?$/i.test(file || '') || !fs.existsSync(path.join(ROUNDS, roundId, file))) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', 'Content-Disposition': `attachment; filename="${roundId}-${file}"` });
+        return res.end(renderVariant(roundId, file, { inline: true, bare: true }));
       }
       if (p === '/api/log' && req.method === 'POST') {
         const body = await readBody(req, 20000);
@@ -419,8 +459,11 @@ function newRound() {
   const dir = path.join(ROUNDS, id);
   fs.mkdirSync(dir, { recursive: true });
   const count = Number(args.count || 0);
+  const parentManifest = args.parent ? readJSON(path.join(ROUNDS, String(args.parent), 'round.json'), {}) || {} : {};
+  const group = args.group ? String(args.group) : parentManifest.group ? [parentManifest.group, parentManifest.subgroup].filter(Boolean).join(' / ') : '';
   const ids = args.variants ? String(args.variants).split(',').map((s) => s.trim()).filter(Boolean) : LETTERS.slice(0, count || 3);
   const manifest = {
+    ...(group ? { group } : {}),
     title: args.title || slug.replace(/[-_]/g, ' '),
     question: args.question || '',
     kind: args.kind || 'component',
@@ -431,11 +474,22 @@ function newRound() {
     created: now(),
   };
   writeJSON(path.join(dir, 'round.json'), manifest);
-  print({ type: 'round-created', id, dir, manifest: path.join(dir, 'round.json'), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)) });
+  print({ type: 'round-created', id, dir, group: group || null, ...(group ? {} : { warning: 'No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".' }), manifest: path.join(dir, 'round.json'), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)) });
 }
 
 function nextStep(d) {
   const sel = (d.selected || []).join(', ');
+  const extras = [];
+  const vs = Object.values(d.variants || {});
+  if (vs.some((v) => v.tokens)) extras.push('Apply every `tokens` override (CSS custom property from -> to) — the user tuned them live.');
+  if (vs.some((v) => v.text_edits)) extras.push('Use the user\'s `text_edits` copy verbatim.');
+  if (vs.some((v) => v.audit)) extras.push('Fix the `audit` issues (contrast, touch targets, labels, overflow) in the next version.');
+  if (d.references?.length) extras.push('Look at the reference images in `references` (read them as images) and match their direction.');
+  if ((d.selected || []).some((k) => k.includes('/'))) extras.push('Some selected variants come from earlier rounds (shortlist): their paths are in `files`.');
+  if (d.reuse) extras.push('The user reused variants that were discarded when this round was approved; keep the approved design untouched.');
+  return base(d, sel) + (extras.length ? ' ' + extras.join(' ') : '');
+}
+function base(d, sel) {
   switch (d.action) {
     case 'choose': return `User approved variant ${sel}. Implement it in the real codebase (source: files.${d.selected?.[0]}). Apply any comments/annotations as final tweaks.`;
     case 'revise': return `User wants changes to ${sel}. Create a new round (--parent ${d.round}) with 2-3 refined versions of ${sel} that address every note and annotation.`;
@@ -449,18 +503,20 @@ async function wait() {
   const id = args.round || latestRoundId();
   if (!id) { print({ type: 'error', message: 'no rounds yet' }); process.exit(1); }
   const timeout = Number(args.timeout || 540) * 1000;
-  const file = path.join(ROUNDS, id, 'decision.json');
   const t0 = Date.now();
   while (Date.now() - t0 < timeout) {
-    const d = readJSON(file);
-    if (d && !d.consumed) {
-      d.consumed = true; d.consumed_at = now();
-      writeJSON(file, d);
-      const errs = recentErrors(id);
-      return print({ type: 'decision', ...d, next_step: nextStep(d), ...(errs.length ? { render_errors: errs } : {}) });
+    // without --round, a decision sent from ANY round counts (the user may reopen an older round)
+    const candidates = args.round ? [id] : listRounds().reverse();
+    for (const rid of candidates) {
+      const file = path.join(ROUNDS, rid, 'decision.json');
+      const d = readJSON(file);
+      if (d && !d.consumed) {
+        d.consumed = true; d.consumed_at = now();
+        writeJSON(file, d);
+        const errs = recentErrors(rid);
+        return print({ type: 'decision', ...d, next_step: nextStep(d), ...(errs.length ? { render_errors: errs } : {}) });
+      }
     }
-    // a newer round appeared (agent moved on) -> stop waiting on the old one
-    if (!args.round && latestRoundId() !== id) break;
     await sleep(700);
   }
   print({ type: 'timeout', round: id, message: 'No decision yet. End your turn and ask the user to pick in the browser (or reply in chat); then run `decision`.' });
@@ -481,7 +537,17 @@ function recentErrors(roundId) {
 }
 
 function list() {
-  print(listRounds().map(loadRound).map((r) => ({ id: r.id, title: r.title, kind: r.kind, parent: r.parent, variants: r.variants.length, decision: r.decision ? `${r.decision.action}:${(r.decision.selected || []).join('+')}` : null })));
+  print(listRounds().map(loadRound).map((r) => ({ id: r.id, group: [r.group, r.subgroup].filter(Boolean).join(' / ') || null, title: r.title, kind: r.kind, parent: r.parent, variants: r.variants.length, decision: r.decision ? `${r.decision.action}:${(r.decision.selected || []).join('+')}` : null, approved: r.decision?.approved?.variant || null })));
+}
+function groups() {
+  const tree = {};
+  for (const r of listRounds().map(loadRound)) {
+    const g = r.group || '(ungrouped)';
+    tree[g] ||= {};
+    const sg = r.subgroup || '(none)';
+    (tree[g][sg] ||= []).push(r.id);
+  }
+  print({ type: 'groups', hint: 'Reuse these names exactly with --group "Group / Subgroup".', groups: tree });
 }
 
 // Static, server-less gallery (fallback for sandboxes that can't keep a server alive)
@@ -507,13 +573,14 @@ function demo() {
 }
 
 function help() {
-  process.stdout.write(`Variant Studio
+  process.stdout.write(`Variant Studio 2.0
   start     start (or reuse) the preview server        --project DIR --open --port N --host H --foreground --idle MIN
-  new       scaffold a round: new <slug> --title T --question Q --kind component|section|page --variants a,b,c --parent ID
+  new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --kind component|section|page --variants a,b,c --parent ID
   wait      block until the user decides               --round ID --timeout SEC (exit 2 on timeout)
   decision  print latest decision without waiting      --round ID
   status    server + latest round summary
   list      all rounds
+  groups    existing groups/subgroups (reuse their names)
   errors    JS errors reported by variant previews     --round ID
   open      open the gallery in the default browser
   build     write a self-contained gallery.html        --out FILE --round ID
@@ -523,7 +590,7 @@ function help() {
 }
 
 const commands = {
-  start, serve, stop, status, wait, decision, list, build, demo, help,
+  start, serve, stop, status, wait, decision, list, groups, build, demo, help,
   new: newRound,
   errors: () => print(recentErrors(args.round)),
   open: () => { const i = readJSON(INFO); if (!i) return print({ type: 'not-running' }); openBrowser(i.url); print({ type: 'opened', url: i.url }); },
