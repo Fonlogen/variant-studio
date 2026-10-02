@@ -1,8 +1,24 @@
 # Variant Studio 2.0
 
-A skill for AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI…) that generates **design variants of any UI element** — a button, a card, a form, a section or a whole page — shows them in a live browser gallery, and lets you pick, comment, tune and combine them. The agent receives your decision as structured JSON and continues from there.
+A skill for AI coding agents (Claude Code, Codex, Kilo Code, Antigravity, Gemini CLI, Cline, GitHub Copilot, Grok Build, Z Code, OpenCode…) that generates **design variants of any UI element** — a button, a card, a form, a section or a whole page — shows them in a live browser gallery, and lets you pick, comment, tune and combine them. The agent receives your decision as structured JSON and continues from there.
 
 The skill is installed and invoked as **`variant-studio`** (e.g. `/variant-studio` in Claude Code).
+
+## Quick install
+
+**Linux / macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1 | iex
+```
+
+Pick your agents from the menu (the ones on your machine are pre-selected) and you're done. Requires Node.js 18+. More options in [Installation](#installation).
 
 ## What's new in 2.0
 
@@ -43,19 +59,7 @@ The skill is installed and invoked as **`variant-studio`** (e.g. `/variant-studi
 
 Requires Node.js 18 or newer. The installer copies (or links) the skill into the agents you choose; agents found on your machine are pre-selected.
 
-**Linux / macOS**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash
-```
-
-**Windows** (PowerShell)
-
-```powershell
-irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1 | iex
-```
-
-From a clone you can also run `./install.sh`, `.\install.ps1`, or double-click `install.cmd`.
+Use the one-liners in [Quick install](#quick-install), or from a clone run `./install.sh`, `.\install.ps1`, or double-click `install.cmd`.
 
 ### Supported agents
 
