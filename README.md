@@ -41,12 +41,61 @@ The skill is installed and invoked as **`variant-studio`** (e.g. `/variant-studi
 
 ## Installation
 
-Requires Node.js 18 or newer. Copy the `variant-studio` folder to:
+Requires Node.js 18 or newer. The installer copies (or links) the skill into the agents you choose; agents found on your machine are pre-selected.
 
-- **Claude Code**: `~/.claude/skills/variant-studio/` (all projects) or `.claude/skills/variant-studio/` (one project).
-- **Codex / Cursor**: `.agents/skills/variant-studio/` in the repository or `~/.agents/skills/variant-studio/`.
-- **Gemini CLI**: `~/.gemini/skills/variant-studio/`.
-- **Other agents**: paste `agents-snippet.md` into `AGENTS.md` (or the agent's instructions file) and fix the path.
+**Linux / macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1 | iex
+```
+
+From a clone you can also run `./install.sh`, `.\install.ps1`, or double-click `install.cmd`.
+
+### Supported agents
+
+| Id | Agent | Global folder | Project folder |
+|---|---|---|---|
+| `claude` | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| `codex` | Codex | `~/.agents/skills/` | `.agents/skills/` |
+| `kilo` | Kilo Code | `~/.kilo/skills/` | `.kilo/skills/` |
+| `antigravity` | Google Antigravity | `~/.gemini/antigravity/skills/` | `.agent/skills/` |
+| `gemini` | Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` |
+| `cline` | Cline | `~/.cline/skills/` | `.cline/skills/` |
+| `copilot` | GitHub Copilot | `~/.copilot/skills/` | `.github/skills/` |
+| `grok` | Grok Build | `~/.grok/skills/` | `.grok/skills/` |
+| `zcode` | Z Code | `~/.zcode/skills/` | `.zcode/skills/` |
+| `opencode` | OpenCode | `~/.config/opencode/skills/` | `.opencode/skills/` |
+
+On Windows `~` is your user folder (`C:\Users\<you>`).
+
+### Installer options
+
+| Bash | PowerShell | |
+|---|---|---|
+| `--agents claude,codex` | `-Agents claude,codex` | Install for these agents without the menu |
+| `--all` | `-All` | Every supported agent |
+| `--project [DIR]` | `-Project DIR` | Install into a project (committable) instead of your user profile |
+| `--link` | `-Link` | Symlink / junction to your clone instead of copying, so `git pull` updates every agent |
+| `--uninstall` | `-Uninstall` | Remove the skill from the chosen agents |
+| `--list` | `-List` | Show agents, paths and what was detected |
+| `--yes` | `-Yes` | Don't ask for confirmation |
+
+With the one-liners, pass options like this:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash -s -- --agents claude,codex --yes
+```
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1))) -Agents claude,codex -Yes
+```
+
+The installer never overwrites a folder that is not Variant Studio, and re-running it updates an existing install. For agents without skill support, paste `agents-snippet.md` into their instructions file (`AGENTS.md`, `GEMINI.md`, a Cursor rule…) and fix the path.
 
 Quick check from a project folder:
 
@@ -100,6 +149,7 @@ Everything goes into `.variant-studio/` (added to `.gitignore` automatically whe
 
 ```
 variant-studio/
+  install.sh / install.ps1 / install.cmd   installers (Linux & macOS / Windows)
   SKILL.md                 instructions for the agent
   agents-snippet.md        text for AGENTS.md / GEMINI.md
   scripts/studio.mjs       CLI + server (zero dependencies)

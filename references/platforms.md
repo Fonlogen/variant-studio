@@ -1,5 +1,7 @@
 # Running the server on different agents
 
+To install the skill itself into one or more agents, use `install.sh` (Linux/macOS) or `install.ps1` / `install.cmd` (Windows) in the skill root; run with `--list` / `-List` to see every supported agent and folder.
+
 The server must stay alive across turns. `STUDIO start` normally detaches it and returns immediately, which works in most harnesses. If your harness kills detached processes when a command ends, run it in the foreground **through the harness's own background mechanism**.
 
 ## Claude Code
