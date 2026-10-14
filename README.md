@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-on-dark.svg">
-    <img src="assets/brand/wordmark-on-light.svg" alt="Variant Studio" width="360">
+    <img src="assets/brand/wordmark-on-light.svg" alt="Variant Studio" width="324">
   </picture>
 </p>
 
