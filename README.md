@@ -24,6 +24,14 @@ It works with Claude Code, Claude Desktop, Codex, Antigravity, Gemini CLI, Kilo 
   </tr>
 </table>
 
+## Made with DesignerSkill
+
+Variant Studio is developed in collaboration with [**DesignerSkill**](https://github.com/Kekko16004/DesignerSkill) by [Kekko16004](https://github.com/Kekko16004), and ships inside it as its variant gallery.
+
+DesignerSkill is a design skill for coding agents that steers away from generic, look-alike UI. Before writing any markup it studies real products similar to yours, fixes the design tokens (colors, type, spacing), then shows you several genuinely different directions in Variant Studio. After you choose, it checks the result for accessibility and common clichés, writes a design spec, and translates the approved design to your stack: HTML, React, React Native and others. It covers websites, phone apps and game UI.
+
+Install Variant Studio on its own from this repository, or get it together with DesignerSkill from [its repository](https://github.com/Kekko16004/DesignerSkill), where its updater keeps Variant Studio current too.
+
 ## Install
 
 **Linux / macOS**
@@ -239,4 +247,4 @@ variant-studio/
   assets/demo-round/         sample round
 ```
 
-Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), written from scratch.
+Made in collaboration with [DesignerSkill](https://github.com/Kekko16004/DesignerSkill). Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), written from scratch.
