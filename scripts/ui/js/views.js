@@ -128,6 +128,7 @@ function renderTopbar(c = ctx()) {
   $('#q').title = r ? [r.question || r.title, r.context].filter(Boolean).join('\n\n') : '';
 }
 function vpName(k, r) { return k === 'auto' ? (r?.kind === 'component' ? t('Fit to card') : t('Design width')) : ({ mobile: t('Mobile'), tablet: t('Tablet'), laptop: t('Laptop'), desktop: t('Desktop') }[k] || k); }
+function setOverflow(v) { S.overflow = v; persist(); layoutFrames(); toast(v ? t('Cards show the whole variant') : t('Tall variants scroll inside their card')); }
 function vpMenu(anchor) {
   const r = ctx()?.r || ctx()?.target;
   const k = currentVpKey(r);
@@ -140,6 +141,7 @@ function vpMenu(anchor) {
     { sep: true },
     { label: t('Device frames on mobile and tablet'), checked: S.device, run: () => { S.device = !S.device; persist(); renderRound(true); } },
     { label: t('Sync scroll'), checked: S.sync, run: () => { S.sync = !S.sync; persist(); } },
+    { label: t('Full height (no inner scroll)'), checked: S.overflow, run: () => setOverflow(!S.overflow) },
     { sep: true },
     { head: t('Zoom') },
     { label: t('Zoom in'), kbd: '+', icon: 'plus', run: () => zoomAll(1) },

@@ -118,7 +118,7 @@ const S = {
   data: { rounds: [], votes: {}, pending: [], agent: { state: 'unknown' } }, roundId: null, follow: true,
   layout: VIEWS.includes(saved.layout) ? saved.layout : 'grid', prevLayout: 'grid', focusFk: null,
   vps: saved.vps || {}, zoom: saved.zoom || 'fit', cardZoom: saved.cardZoom || {},
-  theme: saved.theme || 'light', canvas: saved.canvas || 'light', sync: !!saved.sync, device: saved.device !== false, mode: '',
+  overflow: !!saved.overflow, theme: saved.theme || 'light', canvas: saved.canvas || 'light', sync: !!saved.sync, device: saved.device !== false, mode: '',
   cmp: { mode: saved.cmpMode || 'swipe', a: null, b: null, pos: 50, opacity: 50, diff: false },
   duel: {}, listSel: null, active: null,
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
@@ -131,7 +131,7 @@ const S = {
   railQ: '', audit: {}, tokens: {}, readySeen: null,
 };
 const persist = () => store.save({
-  layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, theme: S.theme, canvas: S.canvas, sync: S.sync, device: S.device,
+  layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, overflow: S.overflow, theme: S.theme, canvas: S.canvas, sync: S.sync, device: S.device,
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
   collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
   fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
@@ -392,12 +392,14 @@ function layoutFrame(f, availW) {
   const cw = (availW ?? (holder ? holder.clientWidth : 0)) - (dev ? 2 * pad + 48 : 0);
   if (cw <= 0) return;
   const vpW = currentVpKey(r) === 'auto' && r.kind === 'component' ? cw : vp[0];
-  const H = fixedH ? vp[1] : Math.max(60, f.h);
+  let H = fixedH ? vp[1] : Math.max(60, f.h);
   const z = zoomOf(f);
   let s = z === 'fit' ? Math.min(1, cw / vpW) : Number(z);
   const maxH = f.role === 'focus' ? Math.max(320, $('#stage').clientHeight - 270) : Infinity;
   if (f.role === 'focus' && z === 'fit' && dev) s = Math.min(s, maxH / H);
   f.s = s;
+  // a tall variant scrolls inside its card, so the grid stays one screen high; "Full height" lets cards grow instead
+  if (f.role === 'card' && !fixedH && !S.overflow) H = Math.min(H, Math.max(320, $('#stage').clientHeight - 230) / s);
   const visW = vpW * s, visH = H * s;
   Object.assign(f.iframe.style, { width: vpW + 'px', height: H + 'px', transform: s === 1 ? '' : `scale(${s})`, left: '0', top: '0' });
   Object.assign(f.scaler.style, { width: visW + 'px', height: visH + 'px' });

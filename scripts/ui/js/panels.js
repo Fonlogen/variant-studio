@@ -230,7 +230,8 @@ function openSettings(focus) {
       h('div', { class: 'switch' }, h('span', {}, t('Studio theme')), uiSeg),
       h('div', { class: 'switch' }, h('span', {}, t('Canvas behind variants')), cvSeg),
       sw(t('Device frames on mobile and tablet'), S.device, (v) => { S.device = v; persist(); renderRound(true); }),
-      sw(t('Sync scroll between previews'), S.sync, (v) => { S.sync = v; persist(); }));
+      sw(t('Sync scroll between previews'), S.sync, (v) => { S.sync = v; persist(); }),
+      sw(t('Full height (no inner scroll)'), S.overflow, (v) => { S.overflow = v; persist(); layoutFrames(); }));
     b.append(h('h4', {}, t('Notifications')),
       sw(t('Notify me when new variants are ready'), S.notify, async (v) => {
         S.notify = v; persist();
@@ -401,6 +402,7 @@ function commands() {
   add(t('View'), t('Overview'), () => setLayout('overview'), 'O');
   add(t('View'), t('Version tree'), () => setLayout('tree'), 'T');
   add(t('View'), t('Variants map'), () => setLayout('map'), 'M');
+  add(t('View'), S.overflow ? t('Scroll tall variants inside their card') : t('Full height (no inner scroll)'), () => setOverflow(!S.overflow));
   [['auto', t('Fit to card')], ['mobile', t('Mobile') + ' 390'], ['tablet', t('Tablet') + ' 820'], ['laptop', t('Laptop') + ' 1280'], ['desktop', t('Desktop') + ' 1440']].forEach(([k, l]) => add(t('Viewport'), l, () => setVp(k)));
   add(t('View'), (S.device ? t('Hide') : t('Show')) + ' ' + t('device frames'), () => { S.device = !S.device; persist(); renderRound(true); });
   add(t('View'), t('Zoom in'), () => zoomAll(1), '+'); add(t('View'), t('Zoom out'), () => zoomAll(-1), '−'); add(t('View'), t('Zoom to fit'), () => zoomAll(0), '0');

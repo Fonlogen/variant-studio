@@ -112,7 +112,7 @@ Every round is kept, grouped by product area and subject, with iterations nested
 |---|---|
 | Scope | Components, sections and full pages, each with its own preview layout |
 | Views | Grid · Full screen · List · Compare (swipe, overlay, tournament, before/after) · Overview · Version tree · Variants map |
-| Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all |
+| Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all; tall variants scroll inside their card (or switch to full height) |
 | Feedback | Selection, 👍/👎, notes per variant, comments on single elements, locked elements, inline copy edits, token overrides, checklist, reference images, screenshots |
 | Tuning | Round controls, fonts, CSS tokens, brand palette, states and content scenarios, light/dark |
 | Decisions | Approve · Request changes · Combine · More like this · Start over · Revoke · Ask for a component |

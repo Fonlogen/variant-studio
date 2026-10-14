@@ -455,6 +455,10 @@ const IT = {
   'Share outside your network': 'Condividi fuori dalla tua rete',
   'Variants map': 'Mappa delle varianti',
   'Variants map (M)': 'Mappa delle varianti (M)',
+  'Full height (no inner scroll)': 'Altezza intera (senza scroll interno)',
+  'Cards show the whole variant': 'Le card mostrano tutta la variante',
+  'Tall variants scroll inside their card': 'Le varianti lunghe scorrono dentro la card',
+  'Scroll tall variants inside their card': 'Scorri le varianti lunghe dentro la card',
 };
 
 // Languages offered in Settings. Dictionaries for es/fr/ru live in js/lang/*.js and register into I18N.

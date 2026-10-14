@@ -453,4 +453,8 @@ I18N.es = {
   'Share outside your network': 'Compartir fuera de tu red',
   'Variants map': 'Mapa de variantes',
   'Variants map (M)': 'Mapa de variantes (M)',
+  'Full height (no inner scroll)': 'Altura completa (sin scroll interno)',
+  'Cards show the whole variant': 'Las tarjetas muestran toda la variante',
+  'Tall variants scroll inside their card': 'Las variantes largas se desplazan dentro de su tarjeta',
+  'Scroll tall variants inside their card': 'Desplazar las variantes largas dentro de su tarjeta',
 };

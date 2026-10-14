@@ -453,4 +453,8 @@ I18N.fr = {
   'Share outside your network': 'Partager hors de votre réseau',
   'Variants map': 'Carte des variantes',
   'Variants map (M)': 'Carte des variantes (M)',
+  'Full height (no inner scroll)': 'Hauteur complète (sans défilement interne)',
+  'Cards show the whole variant': 'Les cartes montrent toute la variante',
+  'Tall variants scroll inside their card': 'Les variantes longues défilent dans leur carte',
+  'Scroll tall variants inside their card': 'Faire défiler les variantes longues dans leur carte',
 };

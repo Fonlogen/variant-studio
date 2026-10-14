@@ -453,4 +453,8 @@ I18N.ru = {
   'Share outside your network': 'Поделиться за пределами сети',
   'Variants map': 'Карта вариантов',
   'Variants map (M)': 'Карта вариантов (M)',
+  'Full height (no inner scroll)': 'Полная высота (без внутренней прокрутки)',
+  'Cards show the whole variant': 'Карточки показывают вариант целиком',
+  'Tall variants scroll inside their card': 'Длинные варианты прокручиваются внутри карточки',
+  'Scroll tall variants inside their card': 'Прокручивать длинные варианты внутри карточки',
 };
