@@ -1,10 +1,17 @@
-# Variant Studio 2.0
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-on-dark.svg">
+    <img src="assets/brand/wordmark-on-light.svg" alt="Variant Studio" width="360">
+  </picture>
+</p>
 
-A skill for AI coding agents (Claude Code, Codex, Kilo Code, Antigravity, Gemini CLI, Cline, GitHub Copilot, Grok Build, Z Code, OpenCode…) that generates **design variants of any UI element** — a button, a card, a form, a section or a whole page — shows them in a live browser gallery, and lets you pick, comment, tune and combine them. The agent receives your decision as structured JSON and continues from there.
+<p align="center">Design variants you can see, compare and send back to your coding agent.</p>
 
-The skill is installed and invoked as **`variant-studio`** (e.g. `/variant-studio` in Claude Code).
+Variant Studio is a skill for AI coding agents. Ask for a few versions of a button, a card, a form or a whole page: the agent writes them, they open side by side in your browser, and you choose. You can comment on a single element, rewrite a headline, drag a slider, attach a screenshot you like. The agent gets all of it as JSON and builds the next round, or implements the one you approved.
 
-## Quick install
+It works with Claude Code, Codex, Kilo Code, Antigravity, Gemini CLI, Cline, GitHub Copilot, Grok Build, Z Code, OpenCode and any agent that can run Node.js. The skill is called `variant-studio` (`/variant-studio` in Claude Code).
+
+## Install
 
 **Linux / macOS**
 
@@ -18,48 +25,86 @@ curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/instal
 irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1 | iex
 ```
 
-Pick your agents from the menu (the ones on your machine are pre-selected) and you're done. Requires Node.js 18+. More options in [Installation](#installation).
+Choose your agents from the menu (the ones on your machine are already ticked). Node.js 18 or newer is the only requirement. More options under [Installation](#installation).
 
-## What's new in 2.0
+To install an older release, add the version (see [Releases](https://github.com/Fonlogen/variant-studio/releases)):
 
-- **New look**: OLED-black studio (with an optional neutral light theme), squared components, orange accent, English-only UI.
-- **Less noise**: compact top bar you can hide (`H`), a centered prompt bar that auto-hides and can be pinned (`P`), descriptions behind an info toggle, every tool reachable from the **command palette** (`Ctrl/⌘ K`).
-- **Grouped history**: rounds are organised as *group → subgroup → iterations* (`--group "Checkout / Pay button"`), with filtering and collapsible groups.
-- **Approved rounds** open on the approved design; *Show discarded* reveals the other variants so you can reuse them in a new prompt.
-- **List layout**: small live thumbnails on the left, the selected variant in detail on the right.
-- **In-app expand**: focus one variant full-size inside the studio and go back with `Esc` — no new tabs or windows.
-- **Zoom** for all cards (`+` `−` `0`) or for a single card.
-- **Live token tweaking**: the Inspector lists the variant's CSS custom properties with color pickers and nudgers; overrides are sent to the agent.
-- **Accessibility audit** per variant: contrast, touch targets (mobile/tablet), missing alt text and labels, horizontal overflow.
-- **Inline text editing**: rewrite copy directly in the preview; the agent receives the exact text.
-- **Reference images**: paste, drop or attach images to the prompt as visual direction.
-- **Cross-round shortlist**: star variants from any round, compare them together and send them as a base.
-- **Quick chips** for common requests ("More minimal", "Bigger type", "More contrast"…).
-- **Export** any variant as standalone HTML or PNG.
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash -s -- --version 2.0
+```
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1))) -Version 2.0
+```
+
+## How it goes
+
+1. You ask: *"Three versions of the pricing table"*, *"Alternatives for the checkout on mobile"*, *"Show me the empty state of the inbox two ways"*.
+2. The agent creates a round, writes the variants and gives you a link.
+3. You compare them, select one or more, and leave feedback.
+4. You press **Approve**, **Request changes**, **Combine**, **More like this** or **Start over**.
+5. The agent reads your decision and continues. It keeps listening while you look, and the studio shows whether it is.
+
+Every round is kept, grouped by product area and subject, with iterations nested under the round they came from.
+
+## What's new in 3.0
+
+**Fixes**
+- Requests are queued. Pressing "Request changes" twice in a row no longer loses the first one, and decisions sent while the agent is busy wait for it.
+- The agent no longer stops waiting after a few minutes. `present` hands the round over and keeps listening; the studio shows *Agent listening*, *Agent working* or *Agent not listening*.
+- Sections and pages no longer show their mobile layout on a desktop round (or the reverse). The viewport is remembered per round, and the agent designs for the round's target width.
+
+**Undo**
+- An approval can be undone for 15 seconds: the agent receives it only after that. Other requests can be withdrawn until the agent picks them up.
+- An approval can be revoked later. The agent is told, and asks before reverting code it already changed.
+
+**Look**
+- A new identity: the split‑V mark, a calm graphite theme with a light alternative, rounded and roomy so the previews get the space.
+- English and Italian interface.
+- Tooltips on every control, placed wherever there is room.
+
+**Tuning**
+- Controls declared by the agent for each round (radius, density, accent…) as sliders, pickers and selects.
+- Font picker for headings and body text, applied to every variant.
+- Brand palette: your colors and fonts injected into every variant.
+- Switches for UI states (loading, empty, error) and content scenarios (long names, no image).
+- Lock an element so the next round keeps it as is.
+- Acceptance checklist with pass/fail per variant.
+
+**Comparing**
+- Grid with a toolbar on each card, and a full-screen view with a filmstrip and arrow keys.
+- Overview of every round in a group, or the whole project, as live thumbnails.
+- Swipe and overlay compare with a difference blend, and before/after against the previous round.
+- A vs B tournament that ranks the variants for you.
+- Device frames, synced scrolling, version tree.
+
+**Feedback and sharing**
+- Screenshots of what you saw go to the agent with the decision.
+- Reference images: paste, drop or attach.
+- Voice notes by dictation, saved prompts, quick chips.
+- A notification and a sound when new variants are ready.
+- Export a variant as PNG, JPG, standalone HTML with your changes applied, or the original HTML. Ask the agent for a React, Vue, Svelte or Tailwind version.
+- Team review: teammates on your network open a link and vote, or you send them an offline gallery and import their votes.
 
 ## Features
 
 | | |
 |---|---|
-| Granularity | Components, sections and pages, each with its own preview layout |
-| History | Numbered rounds grouped by area and subject; iterations nest under their parent; nothing is overwritten |
-| Layouts | Grid · Side by side · One at a time · Swipe compare · List · In-app expand |
-| Viewport | Fit / mobile / tablet / laptop / desktop / custom width, global and per-card zoom |
-| Theme | Light/dark for the variants + canvas (grey, white, dark, transparent); OLED or light studio |
-| Feedback | Multi-select, 👍/👎, per-variant notes, **comments on a single element** (with CSS selector), inline text edits, token overrides, reference images, general note |
-| Actions | Approve · Request changes · Combine · Start over · Reuse discarded · Send shortlist |
-| Waiting | `wait` blocks until you decide (or read later with `decision`) |
-| Live | Only the changed variant reloads; placeholders while the agent writes |
-| Quality | JS errors and accessibility issues reported to you and to the agent |
-| Real stacks | Project CSS via `/p/…`, Tailwind, URL variants (Storybook / dev server) |
-| Platforms | One dependency-free Node file: macOS, Linux, Windows |
-| No server | `build` writes a static gallery; decisions are copied to the clipboard |
+| Scope | Components, sections and full pages, each with its own preview layout |
+| Views | Grid · Full screen · List · Compare (swipe, overlay, tournament, before/after) · Overview · Version tree |
+| Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all |
+| Feedback | Selection, 👍/👎, notes per variant, comments on single elements, locked elements, inline copy edits, token overrides, checklist, reference images, screenshots |
+| Tuning | Round controls, fonts, CSS tokens, brand palette, states and content scenarios, light/dark |
+| Decisions | Approve · Request changes · Combine · More like this · Start over · Revoke · Ask for a component |
+| Agent link | Queued decisions, undo window, presence indicator, `present` / `wait` that never give up on their own |
+| Quality | JS errors and an accessibility audit (contrast, touch targets, alt text, labels, overflow) for you and the agent |
+| Real stacks | Project CSS via `/p/…`, Tailwind, URL variants from Storybook or your dev server |
+| Team | LAN review link with names and votes, or an offline voting gallery |
+| Offline | `build` writes a single HTML file; decisions are copied to the clipboard |
+| Platforms | One dependency-free Node file on macOS, Linux and Windows |
 
 ## Installation
 
-Requires Node.js 18 or newer. The installer copies (or links) the skill into the agents you choose; agents found on your machine are pre-selected.
-
-Use the one-liners in [Quick install](#quick-install), or from a clone run `./install.sh`, `.\install.ps1`, or double-click `install.cmd`.
+The installer copies (or links) the skill into the agents you choose. Use the one-liners above, or from a clone run `./install.sh`, `.\install.ps1`, or double-click `install.cmd`.
 
 ### Supported agents
 
@@ -82,15 +127,16 @@ On Windows `~` is your user folder (`C:\Users\<you>`).
 
 | Bash | PowerShell | |
 |---|---|---|
-| `--agents claude,codex` | `-Agents claude,codex` | Install for these agents without the menu |
+| `--agents claude,codex` | `-Agents claude,codex` | Install for these agents, no menu |
 | `--all` | `-All` | Every supported agent |
 | `--project [DIR]` | `-Project DIR` | Install into a project (committable) instead of your user profile |
-| `--link` | `-Link` | Symlink / junction to your clone instead of copying, so `git pull` updates every agent |
+| `--link` | `-Link` | Symlink / junction to your clone, so `git pull` updates every agent |
 | `--uninstall` | `-Uninstall` | Remove the skill from the chosen agents |
-| `--list` | `-List` | Show agents, paths and what was detected |
+| `--list` | `-List` | Show agents, paths and what was found |
 | `--yes` | `-Yes` | Don't ask for confirmation |
+| `--version 2.0` | `-Version 2.0` | Install that release instead of the latest |
 
-With the one-liners, pass options like this:
+With the one-liners:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash -s -- --agents claude,codex --yes
@@ -99,69 +145,67 @@ curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/instal
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1))) -Agents claude,codex -Yes
 ```
 
-The installer never overwrites a folder that is not Variant Studio, and re-running it updates an existing install. For agents without skill support, paste `agents-snippet.md` into their instructions file (`AGENTS.md`, `GEMINI.md`, a Cursor rule…) and fix the path.
+The installer never overwrites a folder that isn't Variant Studio, and running it again updates an existing install. For agents without skill support, paste `agents-snippet.md` into their instructions file (`AGENTS.md`, `GEMINI.md`, a Cursor rule…) and fix the path.
 
-Quick check from a project folder:
+To try it from any project folder:
 
 ```bash
 node ~/.claude/skills/variant-studio/scripts/studio.mjs start --project . --open
 node ~/.claude/skills/variant-studio/scripts/studio.mjs demo --project .
 ```
 
-## Usage
+## In the studio
 
-Ask your agent, for example:
-
-- "Give me 3 variants of the product card for the category page"
-- "Show me alternatives for the 'Add to cart' button, with hover and disabled states"
-- "Two checkout layouts, on mobile"
-
-In the browser: click a card's letter (or press 1–9) to select it, use 👍/👎, ★ and notes, press **C** and click an element to comment on it, **E** to rewrite text, **I** to tune tokens or read the audit, then send with the prompt bar (or `Ctrl/⌘ Enter`).
-
-### Shortcuts
+Click a card's letter or press `1`–`9` to select it. Press `C` and click an element to comment on it or lock it, `E` to rewrite text, `I` to open the inspector. Write a note in the bar at the bottom and send with the buttons or `Ctrl/⌘ Enter`. Everything else is in the command palette (`Ctrl/⌘ K`).
 
 | Key | Action |
 |---|---|
-| `G` `S` `F` `X` `L` | Grid · Side by side · One at a time · Compare · List |
-| `Z` / `Esc` | Expand the active card / go back |
-| `←` `→` | Previous / next variant (one at a time, list, expanded) |
-| `+` `−` `0` | Zoom all cards in / out / fit |
+| `G` `F` `L` `X` | Grid · Full screen · List · Compare |
+| `O` · `T` | Overview · Version tree |
+| `←` `→` | Previous / next variant; pick a side in the tournament |
+| `Z` / `Esc` | Full screen on the active variant / back |
+| `+` `−` `0` | Zoom in, out, fit |
 | `1`–`9` | Select a variant |
-| `C` · `E` · `I` | Comment on element · Edit text · Inspector |
-| `N` · `D` | Show all descriptions · Variant light/dark |
-| `/` · `P` | Open the prompt · Pin the prompt bar |
-| `H` · `R` · `U` | Hide top bar · Toggle sidebar · Studio light/OLED |
+| `C` · `E` · `I` | Comment or lock · Edit text · Inspector |
+| `N` · `D` · `U` | All descriptions · Variant light/dark · Studio theme |
+| `/` · `R` | Write a note · Rounds panel |
 | `Ctrl/⌘ K` | Command palette |
-| `Ctrl/⌘ Enter` | Send the decision |
+| `Ctrl/⌘ Enter` | Send |
 
-## Files created in your project
+## Team review
 
-Everything goes into `.variant-studio/` (added to `.gitignore` automatically when the project is a git repository):
+- **Same network:** ask the agent to start the studio with `start --team`. The Team panel shows a link; teammates open it, enter their name, vote and comment. Their votes go to the agent with your decision, and your choice still wins.
+- **Anywhere:** ask for `build --team` and send the HTML file. Teammates vote offline and download a votes file, which you import from the Team panel.
+
+## Files in your project
+
+Everything lives in `.variant-studio/`, added to `.gitignore` automatically:
 
 ```
 .variant-studio/
-  global.css            # (optional) your design-system tokens for every round
+  global.css              optional design-system tokens for every round
+  brand.json              your brand palette and fonts (Settings)
   rounds/001-product-card/
-    round.json          # group, question, kind, variant labels and notes
+    round.json            group, question, kind, viewports, controls, labels and notes
     a.html b.html c.html
-    _refs/              # reference images you attached
-    decision.json       # your decision
-  state/                # server.json, logs, decision history, errors
+    _refs/  _shots/       reference images and screenshots sent with decisions
+    decision.json         the latest decision for this round
+  exports/                components the agent wrote for you
+  state/                  server info, decision queue, votes, logs
 ```
 
 ## Skill layout
 
 ```
 variant-studio/
-  install.sh / install.ps1 / install.cmd   installers (Linux & macOS / Windows)
-  SKILL.md                 instructions for the agent
-  agents-snippet.md        text for AGENTS.md / GEMINI.md
-  scripts/studio.mjs       CLI + server (zero dependencies)
-  scripts/ui/app.html      the studio
-  scripts/ui/frame.js      script injected into previews (comments, edits, tokens, audit, export)
-  scripts/ui/base.css      base styles for fragments
-  references/              round.json schema, platforms, frameworks
-  assets/demo-round/       sample round
+  SKILL.md                   instructions for the agent
+  agents-snippet.md          the same, short, for AGENTS.md / GEMINI.md
+  install.sh  install.ps1  install.cmd
+  scripts/studio.mjs         CLI and server, no dependencies
+  scripts/ui/                the studio: app.html, app.css, js/, frame.js (runs inside previews), base.css
+  references/                round.json schema, platforms, frameworks
+  assets/brand/              logo, mark and app icon (SVG)
+  assets/demo-round/         sample round
 ```
 
-Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), rewritten from scratch.
+Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), written from scratch.

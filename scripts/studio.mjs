@@ -1,20 +1,23 @@
 #!/usr/bin/env node
-// Variant Studio 2.0 — zero-dependency design-variant previewer for coding agents.
+// Variant Studio 3.0 — zero-dependency design-variant previewer for coding agents.
 // Node >= 18. Works on macOS, Linux, Windows. No bash required.
 //
-//   node studio.mjs start   [--project DIR] [--port N] [--host H] [--url-host H] [--open] [--foreground] [--idle MIN]
-//   node studio.mjs new     <slug> [--group "Area/Sub"] [--title T] [--question Q] [--kind component|section|page] [--variants a,b,c] [--viewports mobile,desktop] [--parent ID]
-//   node studio.mjs wait    [--round ID] [--timeout SEC]
+//   node studio.mjs start    [--project DIR] [--port N] [--host H] [--url-host H] [--team] [--open] [--foreground] [--idle MIN]
+//   node studio.mjs new      <slug> [--group "Area/Sub"] [--title T] [--question Q] [--kind component|section|page] [--variants a,b,c] [--viewports mobile,desktop] [--parent ID]
+//   node studio.mjs present  [--round ID] [--timeout SEC]     hand the round to the user, then wait for the decision
+//   node studio.mjs wait     [--round ID] [--timeout SEC]     wait for the next decision (exit 2 = still waiting, run again)
 //   node studio.mjs decision [--round ID]
-//   node studio.mjs status | list | groups | open | stop | errors | build [--out FILE] | demo
+//   node studio.mjs status | list | groups | inbox | open | stop | errors | build [--out FILE] [--team] | demo
 
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+const VERSION = '3.0';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI = path.join(HERE, 'ui');
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -41,13 +44,17 @@ const PROJECT = path.resolve(args.project || process.env.VARIANT_STUDIO_PROJECT 
 const HOME = path.join(PROJECT, '.variant-studio');
 const ROUNDS = path.join(HOME, 'rounds');
 const STATE = path.join(HOME, 'state');
+const INBOX = path.join(STATE, 'inbox');
 const INFO = path.join(STATE, 'server.json');
+const AGENT = path.join(STATE, 'agent.json');
+const VOTES = path.join(STATE, 'votes.json');
+const BRAND = path.join(HOME, 'brand.json');
 const EVENTS = path.join(STATE, 'events.jsonl');
 const ERRORS = path.join(STATE, 'errors.jsonl');
 
-const ensureDirs = () => { for (const d of [HOME, ROUNDS, STATE]) fs.mkdirSync(d, { recursive: true }); };
+const ensureDirs = () => { for (const d of [HOME, ROUNDS, STATE, INBOX]) fs.mkdirSync(d, { recursive: true }); };
 const readJSON = (f, fb = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } };
-const writeJSON = (f, o) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(o, null, 2)); fs.renameSync(t, f); };
+const writeJSON = (f, o) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = f + '.' + process.pid + '.tmp'; fs.writeFileSync(t, JSON.stringify(o, null, 2)); fs.renameSync(t, f); };
 const print = (o) => process.stdout.write(JSON.stringify(o, null, 2) + '\n');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const now = () => new Date().toISOString();
@@ -61,6 +68,19 @@ async function health(info) {
     const j = await r.json();
     return j.ok && j.project === PROJECT;
   } catch { return false; }
+}
+
+// ---------- agent presence ----------
+// `wait` writes a heartbeat every 2 s; the gallery shows whether the agent is listening.
+const HOLD_MS = 15000; // approvals stay undoable this long before the agent can read them
+function setAgent(state, extra = {}) { try { writeJSON(AGENT, { state, pid: process.pid, at: now(), beat: Date.now(), ...extra }); } catch {} }
+function agentStatus() {
+  const a = readJSON(AGENT);
+  if (!a) return { state: 'unknown' };
+  const age = Date.now() - (a.beat || 0);
+  if (a.state === 'waiting') return age < 9000 ? { state: 'waiting', since: a.since || a.at } : { state: 'away', since: a.at };
+  if (a.state === 'working') return age < 25 * 60000 ? { state: 'working', since: a.at, round: a.round || null } : { state: 'away', since: a.at };
+  return { state: 'away', since: a.at };
 }
 
 // ---------- rounds ----------
@@ -111,11 +131,16 @@ function loadRound(id) {
     canvas: m.canvas || null,
     parent: m.parent || null,
     context: m.context || '',
+    knobs: Array.isArray(m.knobs) ? m.knobs : [],
+    states: Array.isArray(m.states) ? m.states : [],
+    content: Array.isArray(m.content) ? m.content : [],
+    checklist: Array.isArray(m.checklist) ? m.checklist : [],
     variants,
-    decision,
+    decision: decision ? publicDecision(decision) : null,
     created: m.created || new Date(stat.birthtimeMs || stat.ctimeMs).toISOString(),
   };
 }
+const publicDecision = (d) => { const { _prev, ...rest } = d; return rest; };
 function splitGroup(m) {
   const parts = String(m.group || '').split('/').map((s) => s.trim()).filter(Boolean);
   const group = parts[0] || '';
@@ -135,6 +160,29 @@ function nextRoundId(slug) {
   return `${String(n).padStart(3, '0')}-${clean}`;
 }
 
+// ---------- inbox: every decision is queued, nothing is overwritten ----------
+function inboxEntries() {
+  if (!fs.existsSync(INBOX)) return [];
+  return fs.readdirSync(INBOX).filter((f) => f.endsWith('.json')).sort()
+    .map((f) => ({ file: path.join(INBOX, f), d: readJSON(path.join(INBOX, f)) })).filter((e) => e.d);
+}
+function pendingEntries(roundId) {
+  return inboxEntries().filter((e) => !e.d.consumed && !e.d.cancelled && (!roundId || e.d.round === roundId));
+}
+function enqueue(decision) {
+  ensureDirs();
+  const file = path.join(INBOX, `${Date.now().toString().padStart(14, '0')}-${decision.id}.json`);
+  writeJSON(file, decision);
+  return file;
+}
+function markConsumed(e) {
+  e.d.consumed = true; e.d.consumed_at = now();
+  writeJSON(e.file, e.d);
+  const rf = path.join(ROUNDS, e.d.round, 'decision.json');
+  const rd = readJSON(rf);
+  if (rd && rd.id === e.d.id) { rd.consumed = true; rd.consumed_at = e.d.consumed_at; writeJSON(rf, rd); }
+}
+
 // ---------- rendering ----------
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function headItems(manifest, roundId, inline = false) {
@@ -147,10 +195,19 @@ function headItems(manifest, roundId, inline = false) {
     if (typeof h !== 'string') continue;
     const t = h.trim();
     if (t.startsWith('<')) items.push(t);
-    else if (/\.css(\?|$)/i.test(t)) items.push(`<link rel="stylesheet" href="${esc(t)}">`);
+    else if (/\.css(\?|$)/i.test(t) || /fonts\.googleapis\.com\/css/i.test(t)) items.push(`<link rel="stylesheet" href="${esc(t)}">`);
     else if (/\.m?js(\?|$)/i.test(t)) items.push(`<script src="${esc(t)}"${/\.mjs/.test(t) ? ' type="module"' : ''}></script>`);
   }
   return items.join('\n');
+}
+function brandCss() {
+  const b = readJSON(BRAND);
+  if (!b || b.enabled === false) return '';
+  const vars = Object.entries(b.colors || {}).filter(([k, v]) => /^[\w-]+$/.test(k) && typeof v === 'string' && !/[;{}<]/.test(v)).map(([k, v]) => `--brand-${k}:${v};`).join('');
+  const f = b.fonts || {};
+  const fam = (x) => (typeof x === 'string' && /^[\w \-]+$/.test(x) ? `"${x}"` : null);
+  const fonts = [fam(f.heading) && `--brand-font-heading:${fam(f.heading)},system-ui,sans-serif;`, fam(f.body) && `--brand-font-body:${fam(f.body)},system-ui,sans-serif;`].filter(Boolean).join('');
+  return vars || fonts ? `<style id="vs-brand">:root{${vars}${fonts}}</style>` : '';
 }
 function renderVariant(roundId, file, opts = {}) {
   const dir = path.join(ROUNDS, roundId);
@@ -158,12 +215,13 @@ function renderVariant(roundId, file, opts = {}) {
   const kind = ['component', 'section', 'page'].includes(manifest.kind) ? manifest.kind : 'component';
   const raw = fs.readFileSync(path.join(dir, file), 'utf8');
   const frameJs = opts.bare ? '' : opts.inline ? `<script>${fs.readFileSync(path.join(UI, 'frame.js'), 'utf8')}</script>` : `<script src="/_ui/frame.js"></script>`;
+  const brand = brandCss();
   const isDoc = /^\s*(<!doctype|<html)/i.test(raw);
   if (isDoc) {
     // inject as early as possible so errors thrown by the page are captured
-    if (/<head[^>]*>/i.test(raw)) return raw.replace(/<head[^>]*>/i, (m) => `${m}${frameJs}`);
-    if (/<html[^>]*>/i.test(raw)) return raw.replace(/<html[^>]*>/i, (m) => `${m}${frameJs}`);
-    return frameJs + raw;
+    if (/<head[^>]*>/i.test(raw)) return raw.replace(/<head[^>]*>/i, (m) => `${m}${frameJs}${brand}`);
+    if (/<html[^>]*>/i.test(raw)) return raw.replace(/<html[^>]*>/i, (m) => `${m}${frameJs}${brand}`);
+    return frameJs + brand + raw;
   }
   const baseCss = opts.inline ? `<style>${fs.readFileSync(path.join(UI, 'base.css'), 'utf8')}</style>` : `<link rel="stylesheet" href="/_ui/base.css">`;
   return `<!doctype html>
@@ -174,6 +232,7 @@ function renderVariant(roundId, file, opts = {}) {
 ${opts.inline ? '' : `<base href="/r/${roundId}/">`}
 ${frameJs}
 ${baseCss}
+${brand}
 ${headItems(manifest, roundId, opts.inline)}
 </head>
 <body>
@@ -193,6 +252,13 @@ function safeJoin(root, rel) {
   if (p !== root && !p.startsWith(root + path.sep)) return null;
   return p;
 }
+// fingerprint of the studio's own files: an open tab reloads itself when it changes (after an update or restart)
+function uiVersion() {
+  let n = 0;
+  const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else n = (n * 31 + Math.round(fs.statSync(p).mtimeMs) + f.name.length) % 2147483647; } };
+  try { walk(UI); } catch {}
+  return VERSION + '-' + n.toString(36);
+}
 function sendFile(res, file) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
@@ -208,6 +274,16 @@ function readBody(req, limit = 2e6) {
     req.on('error', reject);
   });
 }
+const json = (res, code, o) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(o)); };
+const cleanName = (s, max = 40) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, max);
+function saveImage(roundId, sub, name, dataUrl) {
+  const m = String(dataUrl || '').match(/^data:image\/(png|jpe?g|webp|gif|avif);base64,(.+)$/);
+  if (!m) return null;
+  const rel = `${sub}/${Date.now().toString(36)}-${cleanName(name) || 'image'}.${m[1].replace('jpeg', 'jpg')}`;
+  fs.mkdirSync(path.join(ROUNDS, roundId, sub), { recursive: true });
+  fs.writeFileSync(path.join(ROUNDS, roundId, rel), Buffer.from(m[2], 'base64'));
+  return rel;
+}
 
 function snapshot() {
   // cheap fingerprint of everything the UI cares about
@@ -221,17 +297,37 @@ function snapshot() {
       }
     } catch {}
   }
-  const g = path.join(HOME, 'global.css');
-  if (fs.existsSync(g)) parts.push('g:' + fs.statSync(g).mtimeMs);
+  for (const f of [path.join(HOME, 'global.css'), VOTES, BRAND]) if (fs.existsSync(f)) parts.push(f + ':' + fs.statSync(f).mtimeMs);
+  const pend = pendingEntries().map((e) => e.d.id).join(',');
+  parts.push('inbox:' + pend);
   return crypto.createHash('sha1').update(parts.join('|')).digest('hex');
+}
+
+function lanAddress() {
+  for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) if (a.family === 'IPv4' && !a.internal) return a.address;
+  return null;
+}
+
+function stateFor() {
+  return {
+    version: VERSION,
+    project: path.basename(PROJECT),
+    rounds: listRounds().map(loadRound).filter(Boolean),
+    agent: agentStatus(),
+    pending: pendingEntries().map((e) => ({ id: e.d.id, round: e.d.round, action: e.d.action, selected: e.d.selected, at: e.d.at, hold_until: e.d.hold_until || null })),
+    votes: readJSON(VOTES, {}),
+    brand: readJSON(BRAND, null),
+    team_url: readJSON(INFO)?.team_url || null,
+  };
 }
 
 async function serve() {
   ensureDirs();
   const prev = readJSON(INFO);
   const key = (prev && prev.key) || crypto.randomBytes(12).toString('hex');
-  const host = args.host || '127.0.0.1';
-  const urlHost = args['url-host'] || (host === '0.0.0.0' ? 'localhost' : host);
+  const host = args.host || (args.team ? '0.0.0.0' : '127.0.0.1');
+  const lan = lanAddress();
+  const urlHost = args['url-host'] || (host === '0.0.0.0' ? (args.team && lan ? lan : 'localhost') : host);
   const idleMin = Number(args.idle || 240);
   let lastActivity = Date.now();
   const clients = new Set();
@@ -250,7 +346,7 @@ async function serve() {
     }
     if (!authed) {
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('Variant Studio 2.0: missing or wrong key. Open the full URL printed by `studio.mjs start` (it contains ?k=...).');
+      return res.end(`Variant Studio ${VERSION}: missing or wrong key. Open the full URL printed by \`studio.mjs start\` (it contains ?k=...).`);
     }
     const setCookie = u.searchParams.get('k') === key ? { 'Set-Cookie': `vs_key=${key}; Path=/; SameSite=Strict; HttpOnly` } : {};
 
@@ -259,14 +355,12 @@ async function serve() {
         res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', ...setCookie });
         return res.end(fs.readFileSync(path.join(UI, 'app.html')));
       }
-      if (p === '/api/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ ok: true, project: PROJECT, pid: process.pid })); }
-      if (p === '/api/state') {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        return res.end(JSON.stringify({ project: path.basename(PROJECT), rounds: listRounds().map(loadRound).filter(Boolean) }));
-      }
+      if (p === '/api/health') return json(res, 200, { ok: true, project: PROJECT, pid: process.pid, version: VERSION });
+      if (p === '/api/state') return json(res, 200, stateFor());
+      if (p === '/api/agent') return json(res, 200, agentStatus());
       if (p === '/api/stream') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
-        res.write(`retry: 1500\nevent: hello\ndata: {}\n\n`);
+        res.write(`retry: 1500\nevent: hello\ndata: ${JSON.stringify({ agent: agentStatus(), ui: uiVersion() })}\n\n`);
         clients.add(res);
         const ping = setInterval(() => res.write(': ping\n\n'), 20000);
         req.on('close', () => { clearInterval(ping); clients.delete(res); });
@@ -275,41 +369,46 @@ async function serve() {
       if (p === '/api/decision' && req.method === 'POST') {
         const body = JSON.parse(await readBody(req));
         const id = body.round;
-        if (!id || !SAFE.test(id) || !fs.existsSync(path.join(ROUNDS, id))) { res.writeHead(400); return res.end('bad round'); }
-        const round = loadRound(id);
-        const files = {};
-        for (const v of round.variants) if (v.file) files[v.id] = path.join(ROUNDS, id, v.file);
-        // cross-round picks (shortlist) use "round/variant" keys
-        for (const key of body.selected || []) {
-          const [rid, vid] = String(key).split('/');
-          if (!vid || !SAFE.test(rid)) continue;
-          const other = loadRound(rid);
-          const v = other && other.variants.find((x) => x.id === vid);
-          if (v && v.file) files[key] = path.join(ROUNDS, rid, v.file);
-        }
-        // an approval survives later decisions on the same round (e.g. reusing discarded variants)
-        const prev = round.decision;
-        const approved = body.action === 'choose' ? { variant: body.selected?.[0], at: now() } : (prev && (prev.approved || (prev.action === 'choose' ? { variant: prev.selected?.[0], at: prev.at } : null))) || undefined;
-        const references = (body.references || []).filter((r) => /^_refs\/[\w.-]+$/.test(r)).map((r) => path.join(ROUNDS, id, r));
-        const decision = { ...body, ...(references.length ? { references } : { references: undefined }), ...(approved ? { approved } : {}), id: crypto.randomBytes(6).toString('hex'), at: now(), consumed: false, files, round_dir: path.join(ROUNDS, id) };
-        writeJSON(path.join(ROUNDS, id, 'decision.json'), decision);
-        fs.appendFileSync(EVENTS, JSON.stringify({ type: 'decision', round: id, action: body.action, selected: body.selected, at: decision.at }) + '\n');
+        if (!id || !SAFE.test(id) || !fs.existsSync(path.join(ROUNDS, id))) return json(res, 400, { error: 'bad round' });
+        const out = receiveDecision(id, body);
         broadcast('decision', { round: id });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, id: decision.id }));
+        return json(res, 200, out);
       }
-      if (p === '/api/ref' && req.method === 'POST') {
+      if (p === '/api/decision/cancel' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req));
+        const out = cancelDecision(String(body.id || ''));
+        broadcast('decision', { round: out.round || null });
+        return json(res, out.ok ? 200 : 409, out);
+      }
+      if ((p === '/api/ref' || p === '/api/shot') && req.method === 'POST') {
         const id = u.searchParams.get('round') || '';
-        if (!SAFE.test(id) || !fs.existsSync(path.join(ROUNDS, id))) { res.writeHead(400); return res.end('bad round'); }
+        if (!SAFE.test(id) || !fs.existsSync(path.join(ROUNDS, id))) return json(res, 400, { error: 'bad round' });
         const body = JSON.parse(await readBody(req, 16e6));
-        const m = String(body.data || '').match(/^data:image\/(png|jpe?g|webp|gif|avif);base64,(.+)$/);
-        if (!m) { res.writeHead(415); return res.end('unsupported image'); }
-        const base = String(body.name || 'reference').replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'reference';
-        const rel = `_refs/${Date.now().toString(36)}-${base}.${m[1].replace('jpeg', 'jpg')}`;
-        fs.mkdirSync(path.join(ROUNDS, id, '_refs'), { recursive: true });
-        fs.writeFileSync(path.join(ROUNDS, id, rel), Buffer.from(m[2], 'base64'));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, path: rel, url: `/r/${id}/${rel}` }));
+        const rel = saveImage(id, p === '/api/ref' ? '_refs' : '_shots', body.name || (p === '/api/ref' ? 'reference' : 'shot'), body.data);
+        if (!rel) return json(res, 415, { error: 'unsupported image' });
+        return json(res, 200, { ok: true, path: rel, url: `/r/${id}/${rel}` });
+      }
+      if (p === '/api/vote' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req, 4e6));
+        const list = Array.isArray(body.votes) ? body.votes : [body];
+        const votes = readJSON(VOTES, {});
+        let n = 0;
+        for (const v of list) {
+          const voter = String(v.voter || '').trim().slice(0, 40);
+          if (!voter || !SAFE.test(String(v.round || '')) || !String(v.variant || '').match(/^[\w.-]+$/)) continue;
+          const slot = ((votes[v.round] ||= {})[v.variant] ||= {});
+          if (v.vote == null && !v.comment) { delete slot[voter]; n++; continue; }
+          slot[voter] = { vote: ['up', 'down'].includes(v.vote) ? v.vote : null, comment: String(v.comment || '').slice(0, 2000), at: now() };
+          n++;
+        }
+        writeJSON(VOTES, votes);
+        broadcast('change', { at: Date.now() });
+        return json(res, 200, { ok: true, saved: n });
+      }
+      if (p === '/api/brand' && req.method === 'POST') {
+        const body = JSON.parse(await readBody(req, 50000));
+        writeJSON(BRAND, { enabled: body.enabled !== false, colors: body.colors || {}, fonts: body.fonts || {}, updated: now() });
+        return json(res, 200, { ok: true });
       }
       if (p.startsWith('/x/')) {
         const [, , roundId, file] = p.split('/');
@@ -354,7 +453,7 @@ async function serve() {
       }
       res.writeHead(404); res.end('not found');
     } catch (e) {
-      res.writeHead(500); res.end(String(e && e.message));
+      json(res, 500, { error: String(e && e.message) });
     }
   });
 
@@ -367,15 +466,19 @@ async function serve() {
   try { port = await tryListen(wanted); }
   catch { port = await tryListen(0); }
 
-  const info = { type: 'server-started', pid: process.pid, port, key, host, project: PROJECT, url: `http://${urlHost}:${port}/?k=${key}`, rounds_dir: ROUNDS, state_dir: STATE, started: now() };
+  const url = `http://${urlHost}:${port}/?k=${key}`;
+  const info = { type: 'server-started', version: VERSION, pid: process.pid, port, key, host, project: PROJECT, url, ...(args.team ? { team_url: url + '&team=1' } : {}), rounds_dir: ROUNDS, state_dir: STATE, started: now() };
   writeJSON(INFO, info);
   try { fs.rmSync(path.join(STATE, 'stopped'), { force: true }); } catch {}
   if (args.foreground) print(info);
 
   let last = snapshot();
+  let lastAgent = JSON.stringify(agentStatus());
   const watcher = setInterval(() => {
     const s = snapshot();
     if (s !== last) { last = s; broadcast('change', { at: Date.now() }); }
+    const a = agentStatus(); const as = JSON.stringify(a);
+    if (as !== lastAgent) { lastAgent = as; broadcast('agent', a); }
     if (clients.size === 0 && Date.now() - lastActivity > idleMin * 60000) shutdown('idle');
   }, 600);
 
@@ -392,13 +495,208 @@ async function serve() {
   process.on('SIGTERM', () => shutdown('signal'));
 }
 
+// ---------- decisions ----------
+function filesFor(round, selected) {
+  const files = {};
+  for (const v of round.variants) if (v.file) files[v.id] = path.join(ROUNDS, round.id, v.file);
+  // cross-round picks (shortlist, before/after) use "round/variant" keys
+  for (const key of selected || []) {
+    const [rid, vid] = String(key).split('/');
+    if (!vid || !SAFE.test(rid)) continue;
+    const other = loadRound(rid);
+    const v = other && other.variants.find((x) => x.id === vid);
+    if (v && v.file) files[key] = path.join(ROUNDS, rid, v.file);
+  }
+  return files;
+}
+const absIn = (id, list, dir) => (list || []).filter((r) => new RegExp(`^${dir}\\/[\\w.-]+$`).test(r)).map((r) => path.join(ROUNDS, id, r));
+
+function receiveDecision(id, body) {
+  const round = loadRound(id);
+  const rf = path.join(ROUNDS, id, 'decision.json');
+  const prevRaw = readJSON(rf);
+  const prevApproved = prevRaw && (prevRaw.approved || (prevRaw.action === 'choose' ? { variant: prevRaw.selected?.[0], at: prevRaw.at } : null));
+
+  // Revoking an approval the agent has not read yet simply cancels it.
+  if (body.action === 'unapprove') {
+    const held = pendingEntries(id).find((e) => e.d.action === 'choose');
+    if (held) return cancelDecision(held.d.id);
+  }
+
+  let approved;
+  if (body.action === 'choose') approved = { variant: body.selected?.[0], at: now() };
+  else if (body.action === 'unapprove') approved = undefined;
+  else approved = prevApproved || undefined;
+
+  const references = absIn(id, body.references, '_refs');
+  const screenshots = {};
+  for (const [k, rel] of Object.entries(body.screenshots || {})) { const a = absIn(id, [rel], '_shots')[0]; if (a) screenshots[k] = a; }
+  const revoked = body.action === 'unapprove' ? { variant: prevApproved?.variant || body.selected?.[0] || null, at: now() } : undefined;
+  const decision = {
+    ...body,
+    references: references.length ? references : undefined,
+    screenshots: Object.keys(screenshots).length ? screenshots : undefined,
+    ...(approved ? { approved } : {}),
+    ...(revoked ? { revoked } : {}),
+    id: crypto.randomBytes(6).toString('hex'),
+    at: now(),
+    consumed: false,
+    ...(body.action === 'choose' && !body.no_hold ? { hold_until: new Date(Date.now() + HOLD_MS).toISOString() } : {}),
+    files: filesFor(round, body.selected),
+    round_dir: path.join(ROUNDS, id),
+  };
+  delete decision.no_hold;
+  writeJSON(rf, { ...decision, _prev: prevRaw ? publicDecision(prevRaw) : null });
+  enqueue(decision);
+  fs.appendFileSync(EVENTS, JSON.stringify({ type: 'decision', id: decision.id, round: id, action: body.action, selected: body.selected, at: decision.at }) + '\n');
+  return { ok: true, id: decision.id, hold_until: decision.hold_until || null };
+}
+
+function cancelDecision(did) {
+  const e = inboxEntries().find((x) => x.d.id === did);
+  if (!e) return { ok: false, error: 'not found' };
+  if (e.d.consumed) return { ok: false, error: 'already received by the agent', round: e.d.round };
+  e.d.cancelled = true; e.d.cancelled_at = now();
+  writeJSON(e.file, e.d);
+  const rf = path.join(ROUNDS, e.d.round, 'decision.json');
+  const rd = readJSON(rf);
+  if (rd && rd.id === did) { if (rd._prev) writeJSON(rf, rd._prev); else fs.rmSync(rf, { force: true }); }
+  fs.appendFileSync(EVENTS, JSON.stringify({ type: 'cancel', id: did, round: e.d.round, at: now() }) + '\n');
+  return { ok: true, cancelled: did, round: e.d.round };
+}
+
+function nextStep(d) {
+  const sel = (d.selected || []).join(', ');
+  const extras = [];
+  const vs = Object.values(d.variants || {});
+  if (vs.some((v) => v.tokens)) extras.push('Apply every `tokens` override (CSS custom property from -> to) — the user tuned them live.');
+  if (d.knobs && Object.keys(d.knobs).length) extras.push('Apply the `knobs` values (round-wide token settings the user chose).');
+  if (d.fonts) extras.push('Use the `fonts` the user picked for headings/body.');
+  if (vs.some((v) => v.text_edits)) extras.push('Use the user\'s `text_edits` copy verbatim.');
+  if (vs.some((v) => v.locked)) extras.push('Elements in `locked` must stay exactly as they are in the next version.');
+  if (vs.some((v) => v.checklist && v.checklist.failed && v.checklist.failed.length)) extras.push('Fix every `checklist.failed` criterion.');
+  if (vs.some((v) => v.audit)) extras.push('Fix the `audit` issues (contrast, touch targets, labels, overflow) in the next version.');
+  if (d.references?.length) extras.push('Look at the reference images in `references` (read them as images) and match their direction.');
+  if (d.screenshots) extras.push('`screenshots` show the variants exactly as the user saw them; open them if you need to check the rendering.');
+  if (d.team_votes) extras.push('`team_votes` holds teammates\' votes and comments: weigh them, the user\'s own choice still wins.');
+  if (d.ranking?.length) extras.push(`The user ranked the variants (best first): ${d.ranking.join(' > ')}.`);
+  if ((d.selected || []).some((k) => k.includes('/'))) extras.push('Some selected variants come from other rounds: their paths are in `files`.');
+  if (d.reuse) extras.push('The user reused variants that were discarded when this round was approved; keep the approved design untouched.');
+  return base(d, sel) + (extras.length ? ' ' + extras.join(' ') : '');
+}
+function base(d, sel) {
+  switch (d.action) {
+    case 'choose': return `User approved variant ${sel}. Implement it in the real codebase (source: files.${d.selected?.[0]}). Apply any comments/annotations as final tweaks.`;
+    case 'revise': return `User wants changes to ${sel}. Create a new round (--parent ${d.round}) with 2-3 refined versions of ${sel} that address every note and annotation.`;
+    case 'remix': return `User wants to combine ${sel}. Read the per-variant comments to see what to keep from each, then create a new round (--parent ${d.round}) with 2-3 blends.`;
+    case 'regenerate': return `User rejected all variants. Read the note and ratings, then create a new round (--parent ${d.round}) exploring clearly different directions.`;
+    case 'more': return `User wants more variants in the direction of ${sel}. Create a new round (--parent ${d.round}) with 2-3 new variants that keep ${sel}'s idea and push it in different ways.`;
+    case 'unapprove': return `User REVOKED the approval of ${d.revoked?.variant || sel} in round ${d.round}. Stop implementing it; if you already changed the codebase for it, tell the user what you changed and ask whether to revert. The round is open again: wait for the next decision.`;
+    case 'export': return `User wants variant ${sel} as a ${d.framework || d.export?.framework || 'component'} component. Convert files.${d.selected?.[0]} using the project's conventions and write it to ${path.join(HOME, 'exports')}/ (create the folder), then tell the user the path. Do not touch the app code unless asked.`;
+    default: return 'Read the note and act on it.';
+  }
+}
+
+function formatDecision(e, rest) {
+  const d = publicDecision(e.d);
+  const errs = recentErrors(d.round);
+  const out = { type: 'decision', ...d, next_step: nextStep(d), ...(errs.length ? { render_errors: errs } : {}) };
+  const m = readJSON(path.join(ROUNDS, String(d.round || '').split('/')[0], 'round.json'), {}) || {};
+  out.design_target = { kind: m.kind || 'component', viewports: m.viewports || (m.kind && m.kind !== 'component' ? ['laptop'] : ['auto']) };
+  const seen = d.viewed_at?.viewport;
+  if (seen && seen !== 'auto' && !out.design_target.viewports.includes(seen)) out.next_step += ` Note: the user looked at the variants at "${seen}" width, but the design target is ${out.design_target.viewports.join(', ')}. Keep designing for the target; only treat ${seen} as a responsive check unless the note asks to change the target.`;
+  delete out.consumed; delete out.hold_until;
+  if (rest.length) {
+    out.also_pending = rest.map((x) => ({ id: x.d.id, round: x.d.round, action: x.d.action, selected: x.d.selected, note: x.d.note || '' }));
+    out.next_step += ` ${rest.length} more decision${rest.length > 1 ? 's are' : ' is'} queued (see also_pending): read them before you start, a later one may refine this one, then run \`wait\` again to receive them in order.`;
+  }
+  return out;
+}
+
+async function waitLoop({ round, timeoutMs }) {
+  const t0 = Date.now();
+  const since = now();
+  setAgent('waiting', { since, round: round || null });
+  const beat = setInterval(() => setAgent('waiting', { since, round: round || null }), 2000);
+  try {
+    while (Date.now() - t0 < timeoutMs) {
+      const pend = pendingEntries(round);
+      const ready = pend.filter((e) => !e.d.hold_until || Date.parse(e.d.hold_until) <= Date.now());
+      if (ready.length) {
+        const e = ready[0];
+        markConsumed(e);
+        clearInterval(beat);
+        setAgent('working', { round: e.d.round, decision: e.d.id });
+        return formatDecision(e, ready.slice(1));
+      }
+      await sleep(600);
+    }
+  } finally { clearInterval(beat); }
+  setAgent('waiting', { since, round: round || null, ended: now() });
+  return null;
+}
+
+async function wait() {
+  if (args.round && !fs.existsSync(path.join(ROUNDS, String(args.round)))) { print({ type: 'error', message: `round ${args.round} not found` }); process.exit(1); }
+  const timeoutMs = Number(args.timeout || 110) * 1000;
+  const d = await waitLoop({ round: args.round ? String(args.round) : null, timeoutMs });
+  if (d) return print(d);
+  print({ type: 'still-waiting', message: 'No decision yet: the user is still looking. Run this same command again right now. Do NOT end your turn and do not ask the user to reply in chat; stop waiting only if the user writes to you in chat.' });
+  process.exit(2);
+}
+
+async function present() {
+  ensureDirs();
+  const id = args.round || latestRoundId();
+  const r = id && loadRound(id);
+  if (!r) { print({ type: 'error', message: 'no round to present: run `new` first' }); process.exit(1); }
+  const missing = r.variants.filter((v) => !v.ready).map((v) => v.id);
+  if (missing.length) { print({ type: 'error', message: `write these variants first: ${missing.map((m) => path.join(ROUNDS, id, m + '.html')).join(', ')}` }); process.exit(1); }
+  let info = readJSON(INFO);
+  if (!(info && pidAlive(info.pid) && await health(info))) {
+    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'start', '--project', PROJECT], { stdio: 'ignore', windowsHide: true });
+    await new Promise((res) => child.on('exit', res));
+    info = readJSON(INFO);
+  }
+  const errs = recentErrors(id).filter((e) => Date.parse(e.at) > Date.now() - 10 * 60000);
+  print({
+    type: 'presented', round: id, url: info?.url || null, question: r.question || r.title,
+    variants: r.variants.map((v) => `${v.id.toUpperCase()} — ${v.label}`),
+    ...(errs.length ? { render_errors: errs } : {}),
+    tell_user: 'Give the user the url and one or two sentences on what they are comparing. This command keeps waiting for their decision.',
+  });
+  const timeoutMs = Number(args.timeout || 110) * 1000;
+  const d = await waitLoop({ round: null, timeoutMs });
+  if (d) return print(d);
+  print({ type: 'still-waiting', message: 'No decision yet. Run `wait` (same --project) right now and keep running it until a decision arrives. Do NOT end your turn; stop only if the user writes to you in chat.' });
+  process.exit(2);
+}
+
+function decision() {
+  const id = args.round || latestRoundId();
+  const pend = pendingEntries(args.round ? id : null);
+  if (pend.length) {
+    const e = pend[0];
+    return print({ ...formatDecision(e, pend.slice(1)), note_for_agent: 'Not marked as received. Run `wait` to receive it.' });
+  }
+  const d = id && readJSON(path.join(ROUNDS, id, 'decision.json'));
+  if (!d) return print({ type: 'no-decision', round: id });
+  print({ type: 'decision', ...publicDecision(d), next_step: nextStep(d) });
+}
+
+function recentErrors(roundId) {
+  if (!fs.existsSync(ERRORS)) return [];
+  return fs.readFileSync(ERRORS, 'utf8').trim().split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter((e) => e && (!roundId || e.round === roundId)).slice(-20);
+}
+
+// ---------- other commands ----------
 function openBrowser(url) {
   const plat = process.platform;
   const [bin, a] = plat === 'darwin' ? ['open', [url]] : plat === 'win32' ? ['cmd', ['/c', 'start', '""', url]] : ['xdg-open', [url]];
   try { spawn(bin, a, { detached: true, stdio: 'ignore', windowsHide: true }).unref(); return true; } catch { return false; }
 }
 
-// ---------- commands ----------
 async function start() {
   ensureDirs();
   ensureGitignore();
@@ -409,6 +707,7 @@ async function start() {
   }
   if (args.foreground) return serve();
   const passthrough = ['project', 'port', 'host', 'url-host', 'idle'].flatMap((k) => (args[k] ? [`--${k}`, String(args[k])] : []));
+  if (args.team) passthrough.push('--team');
   const logFile = path.join(STATE, 'server.log');
   const out = fs.openSync(logFile, 'a');
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve', '--project', PROJECT, ...passthrough], { detached: true, stdio: ['ignore', out, out], windowsHide: true });
@@ -445,10 +744,12 @@ async function status() {
   const alive = !!(info && pidAlive(info.pid) && await health(info));
   const latest = latestRoundId();
   const r = latest && loadRound(latest);
+  const pend = pendingEntries();
   print({
-    running: alive, url: alive ? info.url : null, project: PROJECT, rounds_dir: ROUNDS,
+    running: alive, version: VERSION, url: alive ? info.url : null, ...(alive && info.team_url ? { team_url: info.team_url } : {}), project: PROJECT, rounds_dir: ROUNDS,
     latest_round: r ? { id: r.id, title: r.title, variants: r.variants.map((v) => `${v.id}${v.ready ? '' : ' (missing)'}`), decision: r.decision ? { action: r.decision.action, selected: r.decision.selected, consumed: r.decision.consumed } : null } : null,
-    hint: alive ? undefined : 'Run: node <skill>/scripts/studio.mjs start --project <dir> --open',
+    pending_decisions: pend.length,
+    hint: alive ? (pend.length ? 'Decisions are waiting: run `wait` to receive them.' : undefined) : 'Run: node <skill>/scripts/studio.mjs start --project <dir> --open',
   });
 }
 
@@ -466,74 +767,17 @@ function newRound() {
     ...(group ? { group } : {}),
     title: args.title || slug.replace(/[-_]/g, ' '),
     question: args.question || '',
-    kind: args.kind || 'component',
-    ...(args.viewports ? { viewports: String(args.viewports).split(',') } : {}),
+    // iterations keep the parent's kind and target viewports unless told otherwise: losing them made desktop rounds render as mobile (and vice versa)
+    kind: args.kind || parentManifest.kind || 'component',
+    ...(args.viewports ? { viewports: String(args.viewports).split(',').map((v) => v.trim()) } : parentManifest.viewports ? { viewports: parentManifest.viewports } : {}),
     ...(args.parent ? { parent: args.parent } : {}),
     head: args.head ? String(args.head).split(',') : [],
     variants: ids.map((v) => ({ id: v, label: prettyId(v), notes: '' })),
     created: now(),
   };
   writeJSON(path.join(dir, 'round.json'), manifest);
-  print({ type: 'round-created', id, dir, group: group || null, ...(group ? {} : { warning: 'No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".' }), manifest: path.join(dir, 'round.json'), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)) });
-}
-
-function nextStep(d) {
-  const sel = (d.selected || []).join(', ');
-  const extras = [];
-  const vs = Object.values(d.variants || {});
-  if (vs.some((v) => v.tokens)) extras.push('Apply every `tokens` override (CSS custom property from -> to) — the user tuned them live.');
-  if (vs.some((v) => v.text_edits)) extras.push('Use the user\'s `text_edits` copy verbatim.');
-  if (vs.some((v) => v.audit)) extras.push('Fix the `audit` issues (contrast, touch targets, labels, overflow) in the next version.');
-  if (d.references?.length) extras.push('Look at the reference images in `references` (read them as images) and match their direction.');
-  if ((d.selected || []).some((k) => k.includes('/'))) extras.push('Some selected variants come from earlier rounds (shortlist): their paths are in `files`.');
-  if (d.reuse) extras.push('The user reused variants that were discarded when this round was approved; keep the approved design untouched.');
-  return base(d, sel) + (extras.length ? ' ' + extras.join(' ') : '');
-}
-function base(d, sel) {
-  switch (d.action) {
-    case 'choose': return `User approved variant ${sel}. Implement it in the real codebase (source: files.${d.selected?.[0]}). Apply any comments/annotations as final tweaks.`;
-    case 'revise': return `User wants changes to ${sel}. Create a new round (--parent ${d.round}) with 2-3 refined versions of ${sel} that address every note and annotation.`;
-    case 'remix': return `User wants to combine ${sel}. Read the per-variant comments to see what to keep from each, then create a new round (--parent ${d.round}) with 2-3 blends.`;
-    case 'regenerate': return `User rejected all variants. Read the note and ratings, then create a new round (--parent ${d.round}) exploring clearly different directions.`;
-    default: return 'Read the note and act on it.';
-  }
-}
-
-async function wait() {
-  const id = args.round || latestRoundId();
-  if (!id) { print({ type: 'error', message: 'no rounds yet' }); process.exit(1); }
-  const timeout = Number(args.timeout || 540) * 1000;
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeout) {
-    // without --round, a decision sent from ANY round counts (the user may reopen an older round)
-    const candidates = args.round ? [id] : listRounds().reverse();
-    for (const rid of candidates) {
-      const file = path.join(ROUNDS, rid, 'decision.json');
-      const d = readJSON(file);
-      if (d && !d.consumed) {
-        d.consumed = true; d.consumed_at = now();
-        writeJSON(file, d);
-        const errs = recentErrors(rid);
-        return print({ type: 'decision', ...d, next_step: nextStep(d), ...(errs.length ? { render_errors: errs } : {}) });
-      }
-    }
-    await sleep(700);
-  }
-  print({ type: 'timeout', round: id, message: 'No decision yet. End your turn and ask the user to pick in the browser (or reply in chat); then run `decision`.' });
-  process.exit(2);
-}
-
-function decision() {
-  const id = args.round || latestRoundId();
-  const d = id && readJSON(path.join(ROUNDS, id, 'decision.json'));
-  if (!d) return print({ type: 'no-decision', round: id });
-  print({ type: 'decision', ...d, next_step: nextStep(d) });
-}
-
-function recentErrors(roundId) {
-  if (!fs.existsSync(ERRORS)) return [];
-  return fs.readFileSync(ERRORS, 'utf8').trim().split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
-    .filter((e) => e && (!roundId || e.round === roundId)).slice(-20);
+  setAgent('working', { round: id });
+  print({ type: 'round-created', id, dir, group: group || null, ...(() => { const w = []; if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".'); if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`); return w.length ? { warning: w.join(' ') } : {}; })(), manifest: path.join(dir, 'round.json'), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), then: 'Write every variant file, fill label/notes in round.json, then run `present`.' });
 }
 
 function list() {
@@ -549,8 +793,11 @@ function groups() {
   }
   print({ type: 'groups', hint: 'Reuse these names exactly with --group "Group / Subgroup".', groups: tree });
 }
+function inbox() {
+  print({ type: 'inbox', pending: pendingEntries().map((e) => ({ id: e.d.id, round: e.d.round, action: e.d.action, selected: e.d.selected, note: e.d.note || '', at: e.d.at, held_until: e.d.hold_until || null })) });
+}
 
-// Static, server-less gallery (fallback for sandboxes that can't keep a server alive)
+// Static, server-less gallery (fallback for sandboxes that can't keep a server alive, or to share with a team)
 function build() {
   const out = path.resolve(args.out || path.join(HOME, 'gallery.html'));
   const rounds = (args.round ? [args.round] : listRounds()).map(loadRound).filter(Boolean).map((r) => ({
@@ -558,9 +805,18 @@ function build() {
     variants: r.variants.map((v) => ({ ...v, html: v.file && v.ready ? renderVariant(r.id, v.file, { inline: true }) : null })),
   }));
   const app = fs.readFileSync(path.join(UI, 'app.html'), 'utf8');
-  const data = JSON.stringify({ project: path.basename(PROJECT), rounds }).replace(/</g, '\\u003c');
-  fs.writeFileSync(out, app.replace('<!--VS_STATIC-->', `<script>window.__VS_STATIC__=${data};</script>`));
-  print({ type: 'static-gallery', file: out, note: 'Open this file in a browser. Decisions are copied to clipboard as JSON for the user to paste back into chat.' });
+  const data = JSON.stringify({ version: VERSION, project: path.basename(PROJECT), team: !!args.team, rounds, votes: readJSON(VOTES, {}), brand: readJSON(BRAND, null) }).replace(/</g, '\\u003c');
+  // inline the studio's own CSS and scripts so the file works from file:// with no server
+  const ui = (f) => fs.readFileSync(path.join(UI, f), 'utf8');
+  const safeScript = (js) => js.replace(/<\/script/gi, '<\\/script');
+  const html = app
+    .replace(/<link rel="stylesheet" href="\/_ui\/([\w./-]+\.css)">/g, (m, f) => `<style>\n${ui(f)}\n</style>`)
+    .replace(/<script src="\/_ui\/([\w./-]+\.js)"><\/script>/g, (m, f) => `<script>\n${safeScript(ui(f))}\n</script>`)
+    .replace('<!--VS_STATIC-->', () => `<script>window.__VS_STATIC__=${data};</script>`);
+  fs.writeFileSync(out, html);
+  print({ type: 'static-gallery', file: out, note: args.team
+    ? 'Team gallery: send this file to teammates. They vote and comment, then download a votes file; the user imports it in the studio (Team > Import votes).'
+    : 'Open this file in a browser. Decisions are copied to the clipboard as JSON for the user to paste back into chat.' });
 }
 
 function demo() {
@@ -573,24 +829,26 @@ function demo() {
 }
 
 function help() {
-  process.stdout.write(`Variant Studio 2.0
-  start     start (or reuse) the preview server        --project DIR --open --port N --host H --foreground --idle MIN
-  new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --kind component|section|page --variants a,b,c --parent ID
-  wait      block until the user decides               --round ID --timeout SEC (exit 2 on timeout)
-  decision  print latest decision without waiting      --round ID
+  process.stdout.write(`Variant Studio ${VERSION}
+  start     start (or reuse) the preview server        --project DIR --open --port N --host H --team --foreground --idle MIN
+  new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --kind component|section|page --viewports laptop,mobile --variants a,b,c --parent ID
+  present   hand the latest round to the user and wait for the decision   --round ID --timeout SEC
+  wait      wait for the next decision (exit 2 = still waiting: run it again)   --round ID --timeout SEC
+  decision  print the next or latest decision without waiting   --round ID
+  inbox     decisions queued for the agent
   status    server + latest round summary
   list      all rounds
   groups    existing groups/subgroups (reuse their names)
   errors    JS errors reported by variant previews     --round ID
   open      open the gallery in the default browser
-  build     write a self-contained gallery.html        --out FILE --round ID
+  build     write a self-contained gallery.html        --out FILE --round ID --team
   demo      add a demo round (product card)
   stop      stop the server
 `);
 }
 
 const commands = {
-  start, serve, stop, status, wait, decision, list, groups, build, demo, help,
+  start, serve, stop, status, wait, present, decision, inbox, list, groups, build, demo, help,
   new: newRound,
   errors: () => print(recentErrors(args.round)),
   open: () => { const i = readJSON(INFO); if (!i) return print({ type: 'not-running' }); openBrowser(i.url); print({ type: 'opened', url: i.url }); },

@@ -4,13 +4,37 @@
   const qs = new URLSearchParams(location.search);
   const meta = { round: qs.get('round') || '', variant: qs.get('variant') || '' };
   const post = (msg) => { try { parent.postMessage({ vs: true, ...meta, ...msg }, '*'); } catch {} };
-  const ACCENT = '#ff6a1a';
+  const ACCENT = '#8b9cff';
 
   // ---- theme / canvas (from query, then live via messages) ----
   const html = document.documentElement;
   function applyTheme(t) { if (!t) return; html.dataset.theme = t; html.style.colorScheme = t; html.classList.toggle('dark', t === 'dark'); }
   function applyCanvas(c) { if (c) html.dataset.vsCanvas = c; else delete html.dataset.vsCanvas; }
+  function applyVsAttr(name, v) { if (v) html.setAttribute('data-vs-' + name, v); else html.removeAttribute('data-vs-' + name); }
   applyTheme(qs.get('theme')); applyCanvas(qs.get('canvas'));
+  applyVsAttr('state', qs.get('state')); applyVsAttr('content', qs.get('content'));
+
+  // ---- font override (font picker in the studio) ----
+  function applyFonts(heading, body) {
+    let st = document.getElementById('vs-fonts'), ln = document.getElementById('vs-fonts-link');
+    const fams = [heading, body].filter(Boolean);
+    if (!fams.length) { st && st.remove(); ln && ln.remove(); return; }
+    const local = /^(system-ui|serif|sans-serif|monospace|ui-)/i;
+    const g = fams.filter((f) => !local.test(f)).map((f) => 'family=' + encodeURIComponent(f).replace(/%20/g, '+') + ':wght@300..800');
+    if (g.length) {
+      if (!ln) { ln = document.createElement('link'); ln.id = 'vs-fonts-link'; ln.rel = 'stylesheet'; document.head.appendChild(ln); }
+      ln.href = 'https://fonts.googleapis.com/css2?' + g.join('&') + '&display=swap';
+    } else if (ln) ln.remove();
+    if (!st) { st = document.createElement('style'); st.id = 'vs-fonts'; document.head.appendChild(st); }
+    const q2 = (f) => `"${f.replace(/"/g, '')}"`;
+    st.textContent = (body ? `#vs-root, #vs-root *, body, body * { font-family: ${q2(body)}, system-ui, sans-serif !important; }\n` : '') +
+      (heading ? `#vs-root :is(h1,h2,h3,h4,h5,h6), body :is(h1,h2,h3,h4,h5,h6) { font-family: ${q2(heading)}, system-ui, sans-serif !important; }` : '');
+  }
+  const setAttrs = new Set();
+  function applyAttrs(list) {
+    for (const n of setAttrs) html.removeAttribute(n); setAttrs.clear();
+    for (const a of list || []) { if (!/^[\w-]+$/.test(a.name)) continue; const n = a.name.startsWith('data-') ? a.name : 'data-' + a.name; html.setAttribute(n, a.value); setAttrs.add(n); }
+  }
 
   // ---- size reporting ----
   let lastH = 0;
@@ -67,9 +91,9 @@
   let mode = '', hoverEl = null;
   const box = document.createElement('div');
   box.setAttribute('data-vs-overlay', '');
-  box.style.cssText = `position:fixed;pointer-events:none;z-index:2147483647;border:1.5px solid ${ACCENT};background:rgba(255,106,26,.10);border-radius:2px;display:none;transition:all .06s`;
+  box.style.cssText = `position:fixed;pointer-events:none;z-index:2147483647;border:1.5px solid ${ACCENT};background:rgba(139,156,255,.12);border-radius:2px;display:none;transition:all .06s`;
   const tag = document.createElement('div');
-  tag.style.cssText = `position:absolute;left:-1.5px;top:-20px;font:600 10.5px/18px ui-monospace,monospace;background:${ACCENT};color:#000;padding:0 6px;border-radius:2px;white-space:nowrap`;
+  tag.style.cssText = `position:absolute;left:-1.5px;top:-20px;font:600 10.5px/18px ui-monospace,monospace;background:${ACCENT};color:#000;padding:0 6px;border-radius:5px;white-space:nowrap`;
   box.appendChild(tag);
 
   function onMove(e) {
@@ -139,8 +163,8 @@
       const m = document.createElement('div');
       m.setAttribute('data-vs-overlay', '');
       const place = () => { const r = el.getBoundingClientRect(); m.style.left = (r.right - 9) + 'px'; m.style.top = (r.top - 9) + 'px'; };
-      m.textContent = i + 1;
-      m.style.cssText = `position:fixed;z-index:2147483646;width:18px;height:18px;border-radius:2px;background:${ACCENT};color:#000;font:700 10.5px/18px ui-monospace,monospace;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.35);pointer-events:none`;
+      m.textContent = a.lock ? '🔒' : i + 1;
+      m.style.cssText = `position:fixed;z-index:2147483646;width:18px;height:18px;border-radius:6px;background:${a.lock ? '#e8e8ec' : ACCENT};color:#000;font:700 10.5px/18px ui-monospace,monospace;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.35);pointer-events:none`;
       place(); addEventListener('scroll', place, true); addEventListener('resize', place);
       document.body.appendChild(m); marks.push(m);
     });
@@ -268,14 +292,62 @@
       document.head.appendChild(s);
     });
   }
-  async function snapshot(id) {
+  async function snapshot(d) {
     try {
       const lib = await loadLib();
       const target = document.getElementById('vs-root') || document.body;
       const bg = getComputedStyle(document.body).backgroundColor;
-      const url = await lib.toPng(target, { pixelRatio: 2, backgroundColor: bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : undefined, filter: (n) => !(n.hasAttribute && n.hasAttribute('data-vs-overlay')) });
-      post({ type: 'snapshot', id, url });
-    } catch (e) { post({ type: 'snapshot', id, error: String(e && e.message || e) }); }
+      const solid = bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' ? bg : null;
+      const opts = { pixelRatio: d.scale || 2, filter: (n) => !(n.hasAttribute && n.hasAttribute('data-vs-overlay')) };
+      let url;
+      if (d.format === 'jpeg') url = await lib.toJpeg(target, { ...opts, quality: d.quality || 0.92, backgroundColor: solid || (html.dataset.theme === 'dark' ? '#121214' : '#ffffff') });
+      else url = await lib.toPng(target, { ...opts, backgroundColor: solid || undefined });
+      post({ type: 'snapshot', id: d.id, url, format: d.format || 'png' });
+    } catch (e) { post({ type: 'snapshot', id: d.id, error: String(e && e.message || e) }); }
+  }
+
+  // ---- standalone HTML of what is on screen (tokens, edits, fonts, knobs applied) ----
+  const toDataUrl = (blob) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(blob); });
+  async function inlineUrl(u) {
+    try { const abs = new URL(u, document.baseURI); if (abs.protocol === 'data:') return u; if (abs.origin !== location.origin) return abs.href;
+      const b = await (await fetch(abs.href)).blob(); return b.size < 8e6 ? (await toDataUrl(b)) || abs.href : abs.href; } catch { return u; }
+  }
+  async function cssOf(sheet) {
+    let txt = '';
+    try { for (const r of sheet.cssRules) txt += r.cssText + '\n'; } catch { return null; }
+    const base = sheet.href || document.baseURI; const urls = new Set();
+    txt.replace(/url\(\s*["']?([^"')]+)["']?\s*\)/g, (m, u) => { if (!u.startsWith('data:')) urls.add(u); });
+    for (const u of urls) { let abs; try { abs = new URL(u, base).href; } catch { continue; } txt = txt.split(u).join(await inlineUrl(abs)); }
+    return txt;
+  }
+  async function exportHtml(id) {
+    try {
+      const doc = document.documentElement.cloneNode(true);
+      doc.querySelectorAll('[data-vs-overlay]').forEach((n) => n.remove());
+      doc.querySelectorAll('script').forEach((n) => { if (/frame\.js|html-to-image|__vsFrame/.test((n.src || '') + n.textContent)) n.remove(); });
+      doc.querySelectorAll('base').forEach((n) => n.remove());
+      doc.querySelectorAll('[contenteditable]').forEach((n) => n.removeAttribute('contenteditable'));
+      // stylesheets -> inline <style>
+      const live = [...document.querySelectorAll('link[rel~="stylesheet"]')];
+      const clones = [...doc.querySelectorAll('link[rel~="stylesheet"]')];
+      for (let i = 0; i < live.length; i++) {
+        const sh = live[i].sheet; const c = clones[i]; if (!c) continue;
+        if (sh && new URL(live[i].href, document.baseURI).origin === location.origin) { const css = await cssOf(sh); if (css != null) { const st = document.createElement('style'); st.textContent = css; c.replaceWith(st); continue; } }
+        try { c.setAttribute('href', new URL(live[i].getAttribute('href'), document.baseURI).href); } catch {}
+      }
+      for (const st of doc.querySelectorAll('style')) {
+        let t = st.textContent; const urls = new Set(); t.replace(/url\(\s*["']?([^"')]+)["']?\s*\)/g, (m, u) => { if (!u.startsWith('data:')) urls.add(u); });
+        for (const u of urls) t = t.split(u).join(await inlineUrl(u)); st.textContent = t;
+      }
+      for (const el of doc.querySelectorAll('img[src], source[src], video[poster], image[href]')) {
+        const a = el.hasAttribute('src') ? 'src' : el.hasAttribute('poster') ? 'poster' : 'href';
+        el.setAttribute(a, await inlineUrl(el.getAttribute(a)));
+        el.removeAttribute('srcset');
+      }
+      // inline styles set live (token overrides, attrs) are already on the clone; keep the theme
+      doc.style.removeProperty('cursor');
+      post({ type: 'html', id, html: '<!doctype html>\n' + doc.outerHTML });
+    } catch (e) { post({ type: 'html', id, error: String(e && e.message || e) }); }
   }
 
   addEventListener('message', (e) => {
@@ -286,15 +358,19 @@
     if (d.type === 'canvas') applyCanvas(d.value);
     if (d.type === 'marks') showMarks(d.list);
     if (d.type === 'edits') applyEdits(d.list);
-    if (d.type === 'scroll') scrollTo({ top: d.y || 0, behavior: 'instant' });
+    if (d.type === 'scroll') { const max = document.documentElement.scrollHeight - innerHeight; scrollTo({ top: d.ratio != null && max > 0 ? d.ratio * max : d.y || 0, behavior: 'instant' }); }
+    if (d.type === 'vsattr') { applyVsAttr('state', d.state); applyVsAttr('content', d.content); runAudit(); }
+    if (d.type === 'fonts') applyFonts(d.heading, d.body);
+    if (d.type === 'attrs') { applyAttrs(d.list); runAudit(); }
+    if (d.type === 'html') exportHtml(d.id);
     if (d.type === 'flash') flash(d.selector);
     if (d.type === 'tokens') post({ type: 'tokens', list: collectTokens() });
     if (d.type === 'setToken') { setToken(d.scope, d.name, d.value); runAudit(); }
     if (d.type === 'setTokens') { for (const t of d.list || []) setToken(t.scope, t.name, t.value); runAudit(); }
     if (d.type === 'audit') runAudit();
     if (d.type === 'vp') { if (vpMobile !== !!d.mobile) { vpMobile = !!d.mobile; runAudit(); } }
-    if (d.type === 'snapshot') snapshot(d.id);
+    if (d.type === 'snapshot') snapshot(d);
   });
-  addEventListener('scroll', () => post({ type: 'scrolled', y: scrollY }), { passive: true });
+  addEventListener('scroll', () => { const max = document.documentElement.scrollHeight - innerHeight; post({ type: 'scrolled', y: scrollY, ratio: max > 0 ? scrollY / max : 0 }); }, { passive: true });
   post({ type: 'ready' });
 })();

@@ -8,7 +8,12 @@ The server must stay alive across turns. `STUDIO start` normally detaches it and
 ```bash
 node <skill>/scripts/studio.mjs start --project "$PWD" --open
 ```
-Default mode works. For `wait`, set the Bash tool `timeout` to 600000 and use `--timeout 540`.
+Default mode works. Run the wait in the background so you are notified when the decision arrives, and loop on exit code 2:
+```bash
+# Bash tool with run_in_background: true
+until node <skill>/scripts/studio.mjs wait --project "$PWD" --timeout 580; [ $? -ne 2 ]; do :; done
+```
+In the foreground, set the Bash tool `timeout` to 600000 and use `--timeout 580`; on exit 2 run it again straight away.
 Install the skill in `~/.claude/skills/variant-studio/` (personal) or `.claude/skills/variant-studio/` (project).
 
 ## Codex (CLI / IDE)
@@ -31,6 +36,13 @@ Use the default `start`. If the harness reaps it, use `--foreground` with the ha
 ## Windows
 No bash needed: run the same `node …studio.mjs …` commands from PowerShell or cmd. Detached mode works; the browser opens with `start`.
 
+## Waiting on any agent
+`present` and `wait` return after `--timeout` seconds (default 110, safe under most shell limits) with exit code 2 and `{"type":"still-waiting"}`. Run `wait` again immediately and keep going until a decision arrives; never end the turn because of exit 2. The studio shows the user whether you are listening.
+
+## Team review
+- Same network: `start --team` serves the studio on all interfaces and prints `team_url`. Teammates open it, enter their name, vote and comment; votes go into the decision as `team_votes`.
+- Anywhere: `build --team` writes a voting gallery. Teammates download a votes file and the user imports it from the Team panel.
+
 ## Remote machines, containers, WSL
 - Bind to all interfaces and print a reachable host: `start --host 0.0.0.0 --url-host <hostname-or-ip>`.
 - Or forward the port (`ssh -L <port>:127.0.0.1:<port> host`) and keep the default host.
@@ -40,4 +52,5 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 - `.variant-studio/state/server.json` — url, port, key, pid.
 - `.variant-studio/state/server.log` — server output when detached.
 - `.variant-studio/state/events.jsonl` — every decision ever sent.
+- `.variant-studio/state/inbox/` — the decision queue.
 - `.variant-studio/state/errors.jsonl` — preview errors.

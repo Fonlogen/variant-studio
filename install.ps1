@@ -1,5 +1,5 @@
 <#
-  Variant Studio 2.0 - installer for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
+  Variant Studio 3.0 - installer for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
 
     .\install.ps1                              interactive: pick agents, scope and mode
     .\install.ps1 -Agents claude,codex         non-interactive
@@ -8,11 +8,14 @@
     .\install.ps1 -Link                        junction instead of copy (updates with `git pull`)
     .\install.ps1 -Uninstall -Agents claude
     .\install.ps1 -List                        show agents and paths
+    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0...) instead of the latest
 
   One-liner (downloads the latest main branch):
     irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1 | iex
   With options:
     & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1))) -Agents claude,codex -Yes
+  A specific release:
+    & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.ps1))) -Version 2.0
 
   If scripts are blocked, run through install.cmd or:
     powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -25,12 +28,18 @@ param(
   [switch]$Link,
   [switch]$Copy,
   [switch]$Uninstall,
-  [switch]$List
+  [switch]$List,
+  [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
 $Skill = 'variant-studio'
 $Zip = 'https://codeload.github.com/Fonlogen/variant-studio/zip/refs/heads/main'
+if ($Version) {
+  $Version = $Version.TrimStart('v')
+  if ($Version -notmatch '^[0-9.]+$') { Write-Host '-Version takes a release number like 2.0' -ForegroundColor Red; exit 1 }
+  $Zip = "https://codeload.github.com/Fonlogen/variant-studio/zip/refs/tags/v$Version"
+}
 $IsWin = ($PSVersionTable.PSEdition -eq 'Desktop') -or ($env:OS -eq 'Windows_NT')
 $UserHome = if ($IsWin -and $env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 
@@ -104,7 +113,7 @@ if ($List) {
 }
 
 Write-Host ''
-Write-Host 'Variant Studio ' -NoNewline; Write-Host '2.0' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
+Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.0' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
 Say "Installs the '$Skill' skill into your coding agents." 'DarkGray'
 Write-Host ''
 
@@ -177,9 +186,9 @@ $Tmp = $null
 $Src = $null
 $Mode = if ($Link) { 'link' } elseif ($Copy) { 'copy' } else { '' }
 if (-not $Uninstall) {
-  if ($Here -and (Test-Path (Join-Path $Here 'SKILL.md')) -and (Test-Path (Join-Path $Here 'scripts/studio.mjs'))) { $Src = $Here }
+  if (-not $Version -and $Here -and (Test-Path (Join-Path $Here 'SKILL.md')) -and (Test-Path (Join-Path $Here 'scripts/studio.mjs'))) { $Src = $Here }
   else {
-    Say 'Downloading the latest Variant Studio from GitHub...' 'DarkGray'
+    if ($Version) { Say "Downloading Variant Studio $Version from GitHub..." 'DarkGray' } else { Say 'Downloading the latest Variant Studio from GitHub...' 'DarkGray' }
     $Tmp = Join-Path ([IO.Path]::GetTempPath()) ('vs-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $Tmp | Out-Null
     $zipFile = Join-Path $Tmp 'vs.zip'

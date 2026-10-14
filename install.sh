@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Variant Studio 2.0 — installer for Linux and macOS.
+# Variant Studio 3.0 — installer for Linux and macOS.
 #
 #   ./install.sh                         interactive: pick agents, scope and mode
 #   ./install.sh --agents claude,codex   non-interactive
@@ -8,9 +8,12 @@
 #   ./install.sh --link                  symlink instead of copy (updates with `git pull`)
 #   ./install.sh --uninstall --agents claude
 #   ./install.sh --list                  show agents and paths
+#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0…) instead of the latest
 #
 # One-liner (downloads the latest main branch):
 #   curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash
+# A specific release:
+#   curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/install.sh | bash -s -- --version 2.0
 set -euo pipefail
 
 SKILL=variant-studio
@@ -36,10 +39,10 @@ say()  { printf '%s\n' "$*"; }
 ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
 warn() { printf '  %s!%s %s\n' "$O" "$N" "$*"; }
 die()  { printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2; exit 1; }
-usage() { sed -n '2,15p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,18p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0; }
 
 # ---------- args ----------
-SEL=""; ALL=0; YES=0; SCOPE=""; PROJECT=""; MODE=""; ACTION=install; LIST=0
+SEL=""; ALL=0; YES=0; SCOPE=""; PROJECT=""; MODE=""; ACTION=install; LIST=0; VERSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --agents) SEL="${2:-}"; shift ;;
@@ -53,11 +56,18 @@ while [ $# -gt 0 ]; do
     --copy) MODE=copy ;;
     --uninstall) ACTION=uninstall ;;
     --list) LIST=1 ;;
+    --version) VERSION="${2:-}"; shift ;;
+    --version=*) VERSION="${1#*=}" ;;
     -h|--help) usage ;;
     *) die "Unknown option: $1 (see --help)" ;;
   esac
   shift
 done
+if [ -n "$VERSION" ]; then
+  VERSION="${VERSION#v}"
+  case "$VERSION" in *[!0-9.]*|'') die "--version takes a release number like 2.0" ;; esac
+  REPO_TARBALL="https://codeload.github.com/Fonlogen/variant-studio/tar.gz/refs/tags/v$VERSION"
+fi
 
 # interactive input works even when piped through `curl | bash`
 TTY=""
@@ -88,7 +98,7 @@ if [ "$LIST" = 1 ]; then
 fi
 
 say ""
-say "${B}Variant Studio ${O}2.0${N}${B} installer${N}"
+say "${B}Variant Studio ${O}3.0${N}${B} installer${N}"
 say "${D}Installs the '$SKILL' skill into your coding agents.${N}"
 say ""
 
@@ -157,11 +167,11 @@ TMP=""
 cleanup() { [ -n "$TMP" ] && rm -rf "$TMP"; }
 trap cleanup EXIT
 if [ "$ACTION" = install ]; then
-  if [ -n "$HERE" ] && [ -f "$HERE/SKILL.md" ] && [ -f "$HERE/scripts/studio.mjs" ]; then SRC="$HERE"
+  if [ -z "$VERSION" ] && [ -n "$HERE" ] && [ -f "$HERE/SKILL.md" ] && [ -f "$HERE/scripts/studio.mjs" ]; then SRC="$HERE"
   else
-    say "${D}Downloading the latest Variant Studio from GitHub…${N}"
+    if [ -n "$VERSION" ]; then say "${D}Downloading Variant Studio $VERSION from GitHub…${N}"; else say "${D}Downloading the latest Variant Studio from GitHub…${N}"; fi
     TMP="$(mktemp -d)"
-    if command -v curl >/dev/null 2>&1; then curl -fsSL "$REPO_TARBALL" | tar -xz -C "$TMP"
+    if command -v curl >/dev/null 2>&1; then curl -fsSL "$REPO_TARBALL" | tar -xz -C "$TMP" || die "Could not download ${VERSION:+version $VERSION }(is the release number right? See https://github.com/Fonlogen/variant-studio/releases)"
     elif command -v wget >/dev/null 2>&1; then wget -qO- "$REPO_TARBALL" | tar -xz -C "$TMP"
     else die "curl or wget is required to download the skill."; fi
     SRC="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d | head -n1)"
