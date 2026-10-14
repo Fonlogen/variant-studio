@@ -3,6 +3,7 @@
 'use strict';
 
 const IT = {
+  'Note for the agent': 'Nota per l\'agente',
   'Expand group': 'Espandi gruppo',
   'Collapse group': 'Comprimi gruppo',
   'Tell the agent you no longer approve this design (click twice)': 'Comunica all\'agente che non approvi più questo design (doppio clic)',
@@ -436,11 +437,41 @@ const IT = {
   '{x} sent: the agent receives it in {s}s': '{x} inviata: l\'agente la riceve tra {s}s',
   '“More like this”': '“Altre come questa”',
   '“More like this” sent': '“Altre come questa” inviata',
+  'Subject': 'Soggetto',
+  'All subjects': 'Tutti i soggetti',
+  'Overview, version tree, variants map': 'Panoramica, albero delle versioni, mappa delle varianti',
+  'Team links let people view the variants, vote and comment. They cannot send decisions or open your project files.': 'Con i link del team si possono vedere le varianti, votare e commentare. Non si possono inviare decisioni né aprire i file del progetto.',
+  'Remote sharing needs the live studio.': 'La condivisione remota richiede lo studio in esecuzione.',
+  'Anyone with this link can view and vote from anywhere, until you stop sharing:': 'Chiunque abbia questo link può vedere e votare da ovunque, finché non interrompi la condivisione:',
+  'Since {x}': 'Dalle {x}',
+  'Stop sharing': 'Interrompi la condivisione',
+  'Closes the tunnel and invalidates every guest link': 'Chiude il tunnel e invalida tutti i link degli ospiti',
+  'Opening the tunnel…': 'Apertura del tunnel…',
+  'Closing…': 'Chiusura…',
+  'Remote sharing is turned off. Run the Variant Studio installer again and enable it.': 'La condivisione remota è disattivata. Esegui di nuovo l\'installer di Variant Studio e attivala.',
+  'Remote sharing needs cloudflared. Run the Variant Studio installer again and enable remote sharing, or install cloudflared yourself.': 'La condivisione remota richiede cloudflared. Esegui di nuovo l\'installer di Variant Studio e attiva la condivisione remota, oppure installa cloudflared da te.',
+  'The tunnel stopped: {x}': 'Il tunnel si è fermato: {x}',
+  'Creates a temporary public link through Cloudflare. Guests can view and vote; closing it invalidates the link.': 'Crea un link pubblico temporaneo tramite Cloudflare. Gli ospiti possono vedere e votare; chiudendolo il link non funziona più.',
+  'Share outside your network': 'Condividi fuori dalla tua rete',
+  'Variants map': 'Mappa delle varianti',
+  'Variants map (M)': 'Mappa delle varianti (M)',
 };
+
+// Languages offered in Settings. Dictionaries for es/fr/ru live in js/lang/*.js and register into I18N.
+const FLAG = (body, vb = '0 0 3 2') => `<svg viewBox="${vb}" aria-hidden="true" preserveAspectRatio="none">${body}</svg>`;
+const LANGS = [
+  { code: 'en', name: 'English', flag: FLAG('<clipPath id="fgb"><path d="M0 0v30h60V0z"/></clipPath><clipPath id="fgb2"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath><g clip-path="url(#fgb)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="M0 0l60 30m0-30L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0l60 30m0-30L0 30" clip-path="url(#fgb2)" stroke="#C8102E" stroke-width="4"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/></g>', '0 0 60 30') },
+  { code: 'it', name: 'Italiano', flag: FLAG('<path fill="#009246" d="M0 0h1v2H0z"/><path fill="#fff" d="M1 0h1v2H1z"/><path fill="#ce2b37" d="M2 0h1v2H2z"/>') },
+  { code: 'es', name: 'Español', flag: FLAG('<path fill="#aa151b" d="M0 0h3v2H0z"/><path fill="#f1bf00" d="M0 .5h3v1H0z"/>') },
+  { code: 'fr', name: 'Français', flag: FLAG('<path fill="#002395" d="M0 0h1v2H0z"/><path fill="#fff" d="M1 0h1v2H1z"/><path fill="#ed2939" d="M2 0h1v2H2z"/>') },
+  { code: 'ru', name: 'Русский', flag: FLAG('<path fill="#fff" d="M0 0h3v.67H0z"/><path fill="#0039a6" d="M0 .67h3v.66H0z"/><path fill="#d52b1e" d="M0 1.33h3V2H0z"/>') },
+];
+const I18N = { it: IT };
 
 function t(key, vars) {
   const lang = (typeof S !== 'undefined' && S.lang) || 'en';
-  let s = lang === 'it' ? (IT[key] ?? key) : key;
+  const dict = I18N[lang];
+  let s = dict ? (dict[key] ?? key) : key;
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m));
   return s;
 }

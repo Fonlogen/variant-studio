@@ -3,7 +3,7 @@
 const STATIC = window.__VS_STATIC__ || null;
 const SHORT = '#shortlist';
 const QS = new URLSearchParams(location.search);
-const TEAM = QS.get('team') === '1' || !!(STATIC && STATIC.team);
+const TEAM = QS.get('team') === '1' || window.__VS_ROLE__ === 'guest' || !!(STATIC && STATIC.team);
 
 // ---------------- icons ----------------
 const sv = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
@@ -14,6 +14,7 @@ const I = {
   list: sv('<rect x="3" y="4" width="6" height="4" rx="1.2"/><rect x="3" y="10" width="6" height="4" rx="1.2"/><rect x="3" y="16" width="6" height="4" rx="1.2"/><rect x="11" y="4" width="10" height="16" rx="2"/>'),
   compare: sv('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 2v20"/>'),
   overview: sv('<rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/>'),
+  map: sv('<rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/><path d="M10 7h4M12 7v10h2"/>'),
   tree: sv('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 7v10M6 12h10"/>'),
   mobile: sv('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
   tablet: sv('<rect x="4.5" y="2.5" width="15" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
@@ -105,7 +106,8 @@ const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = se
 // ---------------- state ----------------
 const VP = { auto: null, mobile: [390, 844], tablet: [820, 1180], laptop: [1280, 800], desktop: [1440, 900] };
 const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
-const VIEWS = ['grid', 'focus', 'list', 'compare', 'overview', 'tree'];
+const VIEWS = ['grid', 'focus', 'list', 'compare', 'overview', 'tree', 'map'];
+const SPECIAL_VIEWS = ['tree', 'overview', 'map']; // views across rounds, without a dock or a single round
 const store = {
   key: 'vs3:' + (STATIC ? STATIC.project : location.host),
   load() { try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
@@ -120,19 +122,19 @@ const S = {
   cmp: { mode: saved.cmpMode || 'swipe', a: null, b: null, pos: 50, opacity: 50, diff: false },
   duel: {}, listSel: null, active: null,
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
-  drawer: saved.drawer !== false, ui: saved.ui || 'dark', lang: saved.lang || ((navigator.language || '').toLowerCase().startsWith('it') ? 'it' : 'en'),
+  drawer: saved.drawer !== false, ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
   insp: !!saved.insp, inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
   showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false,
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
   fonts: saved.fonts || { heading: '', body: '' }, knobs: saved.knobs || {}, rstate: saved.rstate || {},
-  ovScope: saved.ovScope || 'group', ovSize: saved.ovSize || 260, voter: saved.voter || '', myVotes: saved.myVotes || {}, exportScale: saved.exportScale || 2,
+  ovScope: saved.ovScope || 'group', ovSize: saved.ovSize || 260, mapSubj: saved.mapSubj || '', mapSize: saved.mapSize || 260, voter: saved.voter || '', myVotes: saved.myVotes || {}, exportScale: saved.exportScale || 2,
   railQ: '', audit: {}, tokens: {}, readySeen: null,
 };
 const persist = () => store.save({
   layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, theme: S.theme, canvas: S.canvas, sync: S.sync, device: S.device,
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
   collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
-  fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
+  fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
 });
 const round = (id = S.roundId) => S.data.rounds.find(r => r.id === id);
 const approvedOf = (r) => { const d = r && r.decision; if (!d || d.action === 'unapprove') return null; const ap = d.approved?.variant || (d.action === 'choose' ? d.selected?.[0] : null); return ap && r.variants.some(v => v.id === ap) ? ap : null; };
@@ -169,6 +171,14 @@ async function fetchState() {
   const r = await fetch('/api/state', { cache: 'no-store' });
   return r.json();
 }
+// The studio language is also the language the agent writes round titles, questions and labels in, so the server keeps it
+// (~/.variant-studio/config.json). A browser with no choice of its own adopts the saved one; otherwise it updates it.
+function postLang() { if (!STATIC && S.data.role === 'owner' && S.data.lang !== S.lang) { S.data.lang = S.lang; fetch('/api/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang: S.lang }) }).catch(() => {}); } }
+function syncLang(initial) {
+  if (STATIC || S.data.role !== 'owner') return;
+  if (initial && !saved.lang && S.data.lang && S.data.lang !== S.lang && LANGS.some(l => l.code === S.data.lang)) { S.lang = S.data.lang; persist(); applyI18n(); return; }
+  postLang();
+}
 function mergeVotes(v) {
   // static team gallery: show this voter's own votes too
   if (!TEAM || !S.voter) return v;
@@ -180,6 +190,7 @@ async function refresh(initial = false) {
   const prevIds = S.data.rounds.map(r => r.id);
   const prevLatest = prevIds[prevIds.length - 1];
   S.data = await fetchState();
+  syncLang(initial);
   $('#proj').textContent = S.data.project || '';
   const ids = S.data.rounds.map(r => r.id);
   const latest = ids[ids.length - 1];
@@ -198,7 +209,7 @@ function showNewPill(id) {
 function selectRound(id, opts = {}) {
   S.roundId = id; S.listSel = null; S.active = null; S.cmp.a = S.cmp.b = null; S.duel = {};
   if (S.layout === 'focus' && !opts.keepFocus) S.layout = S.prevLayout;
-  if (S.layout === 'tree' || S.layout === 'overview') { if (!opts.keepView) S.layout = 'grid'; }
+  if (SPECIAL_VIEWS.includes(S.layout)) { if (!opts.keepView) S.layout = 'grid'; }
   const ids = S.data.rounds.map(r => r.id);
   S.follow = id === ids[ids.length - 1];
   $('#newpill').classList.remove('show');

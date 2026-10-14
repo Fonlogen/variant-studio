@@ -175,12 +175,14 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - Write `question` as the real decision ("Which checkout layout feels fastest on mobile?").
 - Keep variants self-contained and scope class names (`.qb-…`).
 - `label` is 1–3 words naming the idea; `notes` is one sentence on the trade-off.
+- Write `title`, `question`, `context`, `label` and `notes` in the studio language: `new`, `present` and `status` print it as `studio_language` (the user picks it in Settings; it starts from their browser). The text inside the designs follows the product's own language.
 
 ## Commands
 
 | Command | Use |
 |---|---|
-| `start [--team]` | Start or reuse the server. `--team` also serves it on the local network and prints `team_url` for teammates to vote. |
+| `start [--team] [--remote]` | Start or reuse the server. `--team` also serves it on the local network and prints `team_url`; `--remote` also opens a public link (see `share`). |
+| `share [--stop]` | Open a temporary public link (Cloudflare tunnel) and print `guest_url` for teammates outside the network; `--stop` closes it and invalidates every guest link. Needs cloudflared, which the installer offers. |
 | `new <slug>` | Create a round (`--group`, `--title`, `--question`, `--kind`, `--viewports`, `--variants`, `--parent`). |
 | `present` | Check the latest round, print the URL, wait for the decision. |
 | `wait` | Wait for the next decision. Exit 2 = still waiting: run it again. |
@@ -192,16 +194,17 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 
 ## What the user can do (to point them to it)
 
-- Views: grid `G`, full screen `F`/`Z` with filmstrip and ←/→, list `L`, compare `X` (swipe, overlay with difference blend, A-vs-B tournament, before/after against the parent round), overview `O` of every round, version tree `T`.
+- Views: grid `G`, full screen `F`/`Z` with filmstrip and ←/→, list `L`, compare `X` (swipe, overlay with difference blend, A-vs-B tournament, before/after against the parent round), overview `O` of every round, version tree `T`, variants map `M` (the chosen variant of each round as a thumbnail, with its branches).
 - Viewport per round, device frames, zoom (`+ − 0`), synced scrolling, variant theme `D`.
 - Select with `1–9`, rate, star into the shortlist, comment on or lock an element `C`, rewrite copy `E`, Inspector `I` (tune, fonts, tokens, checklist, accessibility audit, text edits).
 - Prompt bar: note `/`, quick chips and saved prompts, reference images (paste, drop, attach), dictation, `Ctrl/⌘ Enter` to send. Undo for 15 seconds after sending; revoke an approval later.
 - Each card's ⋯ menu: more like this, export as PNG, JPG, HTML with the user's changes or the original HTML, ask you for a React/Vue/Svelte/Tailwind component.
-- `Ctrl/⌘ K` command palette, Settings (language EN/IT, studio theme, notifications, what is sent to you, brand palette), Team panel.
+- `Ctrl/⌘ K` command palette, Settings (language: English, Italian, Spanish, French, Russian; studio theme, notifications, what is sent to you, brand palette), Team panel.
 
 ## Troubleshooting
 
-- **403** → the URL was opened without `?k=…`. Give the full `url` again.
+- **403** → the URL was opened without `?k=…`. Give the full `url` again. Guest links (`team_url`, `guest_url`) only view and vote: decisions, uploads and project sources answer 403 to them by design.
+- **`share` fails** → `state: missing` means cloudflared is not installed, `disabled` means the user turned remote sharing off in `~/.variant-studio/config.json`. Tell them to re-run the installer with `--remote`; otherwise use `build --team`.
 - **"The studio server stopped"** → `STUDIO start` again; same port and key, the tab reconnects.
 - **Unreachable URL (remote, container)** → `start --host 0.0.0.0 --url-host <host>` or forward the port; otherwise `build`.
 - **Blank variant** → `STUDIO errors`; look for an unclosed tag or an asset path that should be `/p/…`.

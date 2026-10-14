@@ -27,7 +27,7 @@ function availableActions(c = ctx()) {
 function renderDock() {
   const c = ctx();
   const dock = $('#dock');
-  const special = ['tree', 'overview'].includes(S.layout);
+  const special = SPECIAL_VIEWS.includes(S.layout);
   dock.style.display = !c || special ? 'none' : '';
   renderSent();
   if (!c || special) return;
@@ -292,7 +292,7 @@ function toggleMic() {
   if (rec) { rec.stop(); return; }
   const note = $('#note'); const d = draft(ctx()?.key);
   const base = (note.value || '').trim();
-  rec = new SR(); rec.lang = S.lang === 'it' ? 'it-IT' : 'en-US'; rec.interimResults = true; rec.continuous = true;
+  rec = new SR(); rec.lang = { it: 'it-IT', es: 'es-ES', fr: 'fr-FR', ru: 'ru-RU' }[S.lang] || 'en-US'; rec.interimResults = true; rec.continuous = true;
   rec.onresult = (e) => { let s = ''; for (const r of e.results) s += r[0].transcript; note.value = (base ? base + ' ' : '') + s.trim(); d.note = note.value; autoGrow(note); };
   rec.onerror = (e) => { if (e.error !== 'aborted') toast(t('Dictation error: {x}', { x: e.error })); };
   rec.onend = () => { rec = null; persist(); renderDock(); };

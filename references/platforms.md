@@ -41,7 +41,16 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 
 ## Team review
 - Same network: `start --team` serves the studio on all interfaces and prints `team_url`. Teammates open it, enter their name, vote and comment; votes go into the decision as `team_votes`.
-- Anywhere: `build --team` writes a voting gallery. Teammates download a votes file and the user imports it from the Team panel.
+- Outside the network: `share` (or `start --remote`) opens a Cloudflare quick tunnel and prints `guest_url`, a temporary `https://….trycloudflare.com` link. No Cloudflare account is needed. `share --stop` closes it; the guest key changes, so old links stop working. The user can do the same from the Team panel.
+- Anywhere, offline: `build --team` writes a voting gallery. Teammates download a votes file and the user imports it from the Team panel.
+- Guests (both `team_url` and `guest_url` carry the guest key `g=`, never the owner key `k=`) can view rounds, vote, comment and export images. They cannot send decisions, upload references, change settings or read project files through `/p/` (only CSS, fonts and images).
+
+## User configuration
+`~/.variant-studio/config.json` (written by the installer) holds settings for every project:
+```json
+{ "remote": { "enabled": true, "cloudflared": "/opt/homebrew/bin/cloudflared" } }
+```
+`remote.enabled: false` turns `share` off. `cloudflared` is optional: without it the studio looks in PATH, `~/.variant-studio/bin`, Homebrew and Program Files. A `config.json` inside the skill folder is read too and survives updates.
 
 ## Remote machines, containers, WSL
 - Bind to all interfaces and print a reachable host: `start --host 0.0.0.0 --url-host <hostname-or-ip>`.
@@ -49,7 +58,7 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 - If nothing is reachable, `build` writes a static `gallery.html`; decisions are copied to the clipboard as a JSON block that the user pastes into chat.
 
 ## Where things are
-- `.variant-studio/state/server.json` — url, port, key, pid.
+- `.variant-studio/state/server.json` — url, port, key, guest key, pid, `team_url`, `remote_url`.
 - `.variant-studio/state/server.log` — server output when detached.
 - `.variant-studio/state/events.jsonl` — every decision ever sent.
 - `.variant-studio/state/inbox/` — the decision queue.

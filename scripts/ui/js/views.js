@@ -14,9 +14,10 @@ function toggleDrawer(v = !S.drawer) { S.drawer = v; persist(); document.body.cl
 function renderRail() {
   document.body.classList.toggle('drawer-open', S.drawer);
   $('#rRounds').setAttribute('aria-pressed', String(S.drawer));
-  $('#rShort').setAttribute('aria-pressed', String(S.roundId === SHORT && !['tree', 'overview'].includes(S.layout)));
+  $('#rShort').setAttribute('aria-pressed', String(S.roundId === SHORT && !SPECIAL_VIEWS.includes(S.layout)));
   $('#rTree').setAttribute('aria-pressed', String(S.layout === 'tree'));
   $('#rOverview').setAttribute('aria-pressed', String(S.layout === 'overview'));
+  $('#rMap').setAttribute('aria-pressed', String(S.layout === 'map'));
   const sn = $('#rShort'); sn.querySelector('.n')?.remove(); if (S.stars.length) sn.append(h('span', { class: 'n' }, String(S.stars.length)));
   const tree = $('#tree'); tree.innerHTML = '';
   const q = S.railQ.trim().toLowerCase();
@@ -47,7 +48,7 @@ function renderRail() {
       if (sclosed) continue;
       for (const r of list) {
         const st = statusOf(r); const ap = approvedOf(r);
-        tree.append(h('li', {}, h('button', { class: 'tr', style: `padding-left:${(sg ? 34 : 22) + depth(r) * 10}px`, 'aria-current': String(r.id === S.roundId && !['tree', 'overview'].includes(S.layout)), title: (r.question || r.title) + ': ' + titles[st], onclick: () => selectRound(r.id) },
+        tree.append(h('li', {}, h('button', { class: 'tr', style: `padding-left:${(sg ? 34 : 22) + depth(r) * 10}px`, 'aria-current': String(r.id === S.roundId && !SPECIAL_VIEWS.includes(S.layout)), title: (r.question || r.title) + ': ' + titles[st], onclick: () => selectRound(r.id) },
           h('span', { class: 'st ' + st, html: icons[st] || '' }), h('span', { class: 'num' }, rnum(r.id)), h('span', { class: 'lbl' }, r.title),
           h('span', { class: 'cnt' }, ap ? ap.toUpperCase() : (r.decision?.selected?.length && r.decision.action !== 'unapprove' ? r.decision.selected.map(s => s.split('/').pop()).join('+').toUpperCase() : String(r.variants.length))))));
       }
@@ -66,8 +67,8 @@ function viewItems() {
 }
 function setLayout(v) {
   if (v === 'focus') return openFocus(S.active || ctx()?.items[0]?.fk);
-  if (S.layout !== 'focus') S.prevLayout = ['tree', 'overview'].includes(S.layout) ? 'grid' : S.layout;
-  S.layout = v; if (v !== 'focus' && !['tree', 'overview'].includes(v)) S.prevLayout = v;
+  if (S.layout !== 'focus') S.prevLayout = SPECIAL_VIEWS.includes(S.layout) ? 'grid' : S.layout;
+  S.layout = v; if (v !== 'focus' && !SPECIAL_VIEWS.includes(v)) S.prevLayout = v;
   persist(); renderRail(); renderRound(true);
 }
 function vpRounds() { const c = ctx(); if (!c) return []; return c.kind === 'shortlist' || !c.r ? [...new Set(c.items.map(i => i.r))] : [c.r]; }
@@ -89,7 +90,7 @@ function vpLabel(r) {
 }
 function renderTopbar(c = ctx()) {
   const r = c && (c.r || c.target);
-  const special = ['tree', 'overview'].includes(S.layout);
+  const special = SPECIAL_VIEWS.includes(S.layout);
   $('#viewSeg').style.display = special || !c ? 'none' : '';
   seg($('#viewSeg'), viewItems(), S.layout, setLayout);
   $('#viewSeg').classList.add('icons');
@@ -115,6 +116,7 @@ function renderTopbar(c = ctx()) {
   $('#inspBtn').setAttribute('aria-pressed', String(S.insp)); $('#inspBtn').style.display = TEAM ? 'none' : '';
   const crumb = $('#crumb'); crumb.innerHTML = '';
   if (S.layout === 'tree') { crumb.textContent = t('All rounds'); $('#q').textContent = t('Version tree'); }
+  else if (S.layout === 'map') { crumb.textContent = ''; $('#q').textContent = t('Variants map'); }
   else if (S.layout === 'overview') { crumb.textContent = r ? [r.group, r.subgroup].filter(Boolean).join(' / ') : ''; $('#q').textContent = t('Overview'); }
   else if (c && c.kind === 'shortlist') { crumb.textContent = t('Shortlist'); $('#q').textContent = t('{n} starred variants', { n: c.items.length }); }
   else if (r) {
@@ -175,9 +177,9 @@ function renderRound(force = false) {
   const c = ctx();
   renderTopbar(c);
   const view = $('#view');
-  if (S.layout === 'tree' || S.layout === 'overview') {
-    const sig = [S.layout, S.ovScope, S.ovSize, S.roundId, S.data.rounds.map(r => r.id + statusOf(r) + r.variants.map(v => v.ready ? v.mtime : 0).join('.')).join(',')].join('|');
-    if (force || sig !== lastSig) { lastSig = sig; frames.clear(); view.innerHTML = ''; view.append(S.layout === 'tree' ? buildTree() : buildOverview()); }
+  if (SPECIAL_VIEWS.includes(S.layout)) {
+    const sig = [S.layout, S.ovScope, S.ovSize, S.mapSubj, S.mapSize, S.roundId, S.data.rounds.map(r => r.id + statusOf(r) + r.variants.map(v => v.ready ? v.mtime : 0).join('.')).join(',')].join('|');
+    if (force || sig !== lastSig) { lastSig = sig; frames.clear(); view.innerHTML = ''; view.append(S.layout === 'tree' ? buildTree() : S.layout === 'map' ? buildMap() : buildOverview()); }
     $('#dock').style.display = 'none';
     renderInspector();
     requestAnimationFrame(layoutFrames);
@@ -244,7 +246,7 @@ function buildGrid(c) {
 // Full screen: one variant large, the others in a filmstrip underneath.
 function openFocus(fk) {
   if (!fk) return;
-  if (S.layout !== 'focus') { S.prevLayout = ['tree', 'overview', 'focus'].includes(S.layout) ? 'grid' : S.layout; S.scrollBack = $('#stage').scrollTop; }
+  if (S.layout !== 'focus') { S.prevLayout = [...SPECIAL_VIEWS, 'focus'].includes(S.layout) ? 'grid' : S.layout; S.scrollBack = $('#stage').scrollTop; }
   S.layout = 'focus'; S.focusFk = fk; S.active = fk;
   renderRail(); renderRound(true); $('#stage').scrollTop = 0;
 }

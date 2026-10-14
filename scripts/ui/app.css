@@ -332,9 +332,10 @@ textarea.cm:focus { border-color: var(--acc-line); }
 /* ---------- inspector ---------- */
 #insp { background: var(--bg); border-left: 1px solid var(--line); display: none; flex-direction: column; min-width: 0; overflow: hidden; }
 body.insp-open #insp { display: flex; }
-.in-h { display: flex; align-items: center; gap: 6px; padding: 14px 10px 8px 14px; }
-.in-h .seg { flex: 1; overflow-x: auto; scrollbar-width: none; }
-.in-h .seg button { padding: 0 8px; font-size: 12.5px; }
+.in-h { display: flex; align-items: flex-start; gap: 6px; padding: 14px 10px 8px 14px; }
+.in-h .seg { flex: 1; min-width: 0; flex-wrap: wrap; } /* tabs wrap instead of sliding under the close button in long languages */
+.in-h .seg button { padding: 0 8px; font-size: 12.5px; flex: 1 0 auto; justify-content: center; }
+.in-h .ib { margin-top: 2px; }
 .in-sel { padding: 4px 14px 8px; }
 .in-sel select { width: 100%; }
 .in-b { flex: 1; overflow: auto; padding: 4px 14px 40px; }
@@ -445,3 +446,43 @@ body.insp-open #insp { display: flex; }
 #tip[data-side=left] i { right: -4px; margin-top: -4px; }
 :root[data-ui=light] { --tip-bg: #1d1d22; --tip-ink: #fafafa; }
 @media (prefers-reduced-motion: reduce) { #tip { transition: none; } }
+
+/* ---------- language flags ---------- */
+.flags { display: flex; gap: 6px; }
+.flags button { width: 34px; height: 26px; padding: 3px; border: 0; border-radius: 8px; background: var(--surf-3); display: grid; place-items: center; cursor: pointer; }
+.flags button svg { width: 100%; height: 100%; border-radius: 3px; display: block; }
+.flags button:hover { background: var(--line); }
+.flags button[aria-pressed=true] { box-shadow: 0 0 0 2px var(--acc); background: var(--surf-2); }
+
+/* ---------- variants map ---------- */
+.vmap { display: flex; flex-direction: column; gap: 28px; }
+.vmap .ov-h { margin-bottom: 0; }
+.vmap select { max-width: 340px; height: 32px; }
+.mscroll { overflow-x: auto; padding: 4px 4px 12px; margin: 0 -4px; }
+.mboard { position: relative; }
+.medges { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.medges path { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
+.medges path.ap { stroke: var(--good); }
+.mnode { position: absolute; width: var(--mw); height: var(--mh); display: flex; flex-direction: column; background: var(--surf); border-radius: var(--r); outline: 1.5px solid transparent; overflow: hidden; }
+.mnode.cur { outline-color: var(--acc-line); }
+.mnode.approved { outline-color: var(--good); }
+.mnode .mh { display: flex; align-items: center; gap: 8px; padding: 9px 10px 7px; border: 0; background: none; text-align: left; min-width: 0; }
+.mnode .mh:hover b { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.mnode .mh small { color: var(--ink-3); flex: none; }
+.mnode .mh b { font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnode .box { flex: 1; min-height: 0; margin: 0 5px; border-radius: var(--r-sm); background: var(--stage); overflow: hidden; display: grid; }
+.mnode .box.mosaic { grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 3px; background: var(--line); }
+.mnode .cell { position: relative; overflow: hidden; border: 0; padding: 0; background: var(--stage); min-height: 0; }
+.mnode .cell .pv { position: absolute; inset: 0; pointer-events: none; }
+.mnode .cell:hover { outline: 1.5px solid var(--line-2); outline-offset: -1.5px; }
+.mnode .mf { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-width: 0; }
+.mnode .chips { display: flex; gap: 3px; flex: none; }
+.mnode .chip { font-size: 11px; font-weight: 600; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 6px; border: 0; background: var(--surf-2); color: var(--ink-2); }
+.mnode .chip:hover { color: var(--ink); }
+.mnode .chip.on { background: var(--acc-soft); color: var(--acc); }
+.mnode .chip.ap { background: var(--good); color: #0b2a1b; }
+.mnode .lab { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mact { position: absolute; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); border: 1.5px solid var(--line-2); color: var(--ink-2); z-index: 1; }
+.mact svg { width: 12px; height: 12px; }
+.mact.revise, .mact.remix, .mact.more { border-color: var(--acc); color: var(--acc); }
+.mact.choose { border-color: var(--good); background: var(--good); color: #0b2a1b; }

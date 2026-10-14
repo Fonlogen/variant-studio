@@ -10,6 +10,8 @@
 //   node studio.mjs status | list | groups | inbox | open | stop | errors | build [--out FILE] [--team] | demo
 
 import http from 'node:http';
+import https from 'node:https';
+import dns from 'node:dns';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -321,10 +323,46 @@ function stateFor() {
   };
 }
 
+// ---------- remote sharing (Cloudflare quick tunnel) ----------
+// ~/.variant-studio/config.json is written by the installer: { "remote": { "enabled": true, "cloudflared": "/path/to/cloudflared" } }
+const USER_DIR = path.join(os.homedir(), '.variant-studio');
+const LANG_NAMES = { en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ru: 'Russian' };
+// the studio language: chosen in the studio (saved by the browser), otherwise guessed from the system locale
+function studioLang() {
+  const l = userConfig().lang;
+  if (LANG_NAMES[l]) return l;
+  const sys = (process.env.LC_ALL || process.env.LANG || Intl.DateTimeFormat().resolvedOptions().locale || '').slice(0, 2).toLowerCase();
+  return LANG_NAMES[sys] ? sys : 'en';
+}
+const langNote = () => { const l = studioLang(); return { studio_language: l, write_in: `Write the round title, question, context, variant labels and notes in ${LANG_NAMES[l]}, the language of the studio. Copy inside the designs follows the product, not the studio.` }; };
+function saveUserConfig(patch) {
+  const f = path.join(USER_DIR, 'config.json');
+  fs.mkdirSync(USER_DIR, { recursive: true });
+  writeJSON(f, { ...readJSON(f, {}), ...patch });
+}
+const userConfig = () => ({ ...readJSON(path.join(HERE, '..', 'config.json'), {}), ...readJSON(path.join(USER_DIR, 'config.json'), {}) });
+function findCloudflared() {
+  const exe = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
+  const cfg = userConfig().remote?.cloudflared;
+  const dirs = [...(process.env.PATH || '').split(path.delimiter), path.join(USER_DIR, 'bin'), '/opt/homebrew/bin', '/usr/local/bin', path.join(os.homedir(), '.local', 'bin'),
+    ...(process.platform === 'win32' ? [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'cloudflared'), path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'cloudflared')] : [])];
+  for (const c of [cfg, ...dirs.filter(Boolean).map((d) => path.join(d, exe))]) { try { if (c && fs.statSync(c).isFile()) return c; } catch {} }
+  return null;
+}
+// what a guest (teammate link, LAN or remote) may reach: view, vote, export. Never decisions, uploads or project sources.
+const GUEST_P_ASSET = /\.(css|woff2?|ttf|otf|png|jpe?g|gif|webp|avif|svg|ico)$/i;
+function guestAllowed(p, method) {
+  if (method === 'GET' && (p === '/' || p === '/index.html' || p.startsWith('/_ui/') || p === '/_global.css' || p === '/api/state' || p === '/api/stream' || p === '/api/health' || p === '/api/agent' || p.startsWith('/v/') || p.startsWith('/r/') || p.startsWith('/x/'))) return true;
+  if (method === 'GET' && p.startsWith('/p/')) return GUEST_P_ASSET.test(p);
+  if (method === 'POST' && (p === '/api/vote' || p === '/api/log')) return true;
+  return false;
+}
+
 async function serve() {
   ensureDirs();
   const prev = readJSON(INFO);
   const key = (prev && prev.key) || crypto.randomBytes(12).toString('hex');
+  let guestKey = (prev && prev.guest_key) || crypto.randomBytes(12).toString('hex');
   const host = args.host || (args.team ? '0.0.0.0' : '127.0.0.1');
   const lan = lanAddress();
   const urlHost = args['url-host'] || (host === '0.0.0.0' ? (args.team && lan ? lan : 'localhost') : host);
@@ -337,8 +375,12 @@ async function serve() {
     lastActivity = Date.now();
     const u = new URL(req.url, 'http://x');
     const p = u.pathname;
-    const cookieKey = (req.headers.cookie || '').match(/vs_key=([a-f0-9]+)/)?.[1];
-    const authed = u.searchParams.get('k') === key || cookieKey === key;
+    const cookie = req.headers.cookie || '';
+    const cookieKey = cookie.match(/vs_key=([a-f0-9]+)/)?.[1];
+    const cookieGuest = cookie.match(/vs_guest=([a-f0-9]+)/)?.[1];
+    const owner = u.searchParams.get('k') === key || cookieKey === key;
+    const guest = !owner && (u.searchParams.get('g') === guestKey || cookieGuest === guestKey);
+    const authed = owner || guest;
     // tool assets are public so pages on other origins (e.g. a dev server) can include frame.js
     if (p.startsWith('/_ui/') && /^\/_ui\/(frame\.js|base\.css)$/.test(p)) {
       res.writeHead(200, { 'Content-Type': MIME[path.extname(p)], 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
@@ -348,15 +390,33 @@ async function serve() {
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
       return res.end(`Variant Studio ${VERSION}: missing or wrong key. Open the full URL printed by \`studio.mjs start\` (it contains ?k=...).`);
     }
-    const setCookie = u.searchParams.get('k') === key ? { 'Set-Cookie': `vs_key=${key}; Path=/; SameSite=Strict; HttpOnly` } : {};
+    if (guest && !guestAllowed(p, req.method)) { res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Not available to guests.'); }
+    const setCookie = u.searchParams.get('k') === key ? { 'Set-Cookie': `vs_key=${key}; Path=/; SameSite=Lax; HttpOnly` }
+      : u.searchParams.get('g') === guestKey ? { 'Set-Cookie': `vs_guest=${guestKey}; Path=/; SameSite=Lax; HttpOnly` } : {};
 
     try {
       if (p === '/' || p === '/index.html') {
         res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', ...setCookie });
-        return res.end(fs.readFileSync(path.join(UI, 'app.html')));
+        const app = fs.readFileSync(path.join(UI, 'app.html'), 'utf8');
+        return res.end(guest ? app.replace('<!--VS_STATIC-->', '<script>window.__VS_ROLE__="guest";</script>') : app);
       }
       if (p === '/api/health') return json(res, 200, { ok: true, project: PROJECT, pid: process.pid, version: VERSION });
-      if (p === '/api/state') return json(res, 200, stateFor());
+      if (p === '/api/state') {
+        const st = stateFor();
+        if (guest) { delete st.team_url; delete st.brand; return json(res, 200, { ...st, role: 'guest' }); }
+        return json(res, 200, { ...st, role: 'owner', team_url: teamUrl(), remote: remoteState(), lang: userConfig().lang || null });
+      }
+      if (p === '/api/prefs' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}');
+        if (!LANG_NAMES[body.lang]) return json(res, 400, { error: 'unknown language' });
+        saveUserConfig({ lang: body.lang });
+        return json(res, 200, { ok: true, lang: body.lang });
+      }
+      if (p === '/api/remote' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}');
+        if (body.on) startTunnel(); else stopTunnel(true);
+        return json(res, 200, remoteState());
+      }
       if (p === '/api/agent') return json(res, 200, agentStatus());
       if (p === '/api/stream') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
@@ -467,8 +527,68 @@ async function serve() {
   catch { port = await tryListen(0); }
 
   const url = `http://${urlHost}:${port}/?k=${key}`;
-  const info = { type: 'server-started', version: VERSION, pid: process.pid, port, key, host, project: PROJECT, url, ...(args.team ? { team_url: url + '&team=1' } : {}), rounds_dir: ROUNDS, state_dir: STATE, started: now() };
+  // teammates never get the owner key: their links carry the guest key (view + vote only)
+  function teamUrl() { return host === '0.0.0.0' && lan ? `http://${lan}:${port}/?g=${guestKey}&team=1` : null; }
+  let tunnel = { state: 'off' }, tunnelProc = null;
+  function remoteState() {
+    const cfg = userConfig().remote || {};
+    return { ...tunnel, ...(tunnel.url ? { guest_url: `${tunnel.url}/?g=${guestKey}&team=1` } : {}), enabled: cfg.enabled !== false, available: !!findCloudflared() };
+  }
+  const saveInfo = () => { const cur = readJSON(INFO) || {}; writeJSON(INFO, { ...cur, guest_key: guestKey, team_url: teamUrl(), remote_url: tunnel.url ? remoteState().guest_url : null }); };
+  function setTunnel(t) { tunnel = t; saveInfo(); broadcast('change', { at: Date.now() }); }
+  function startTunnel() {
+    if (tunnelProc) return;
+    if (userConfig().remote?.enabled === false) return setTunnel({ state: 'disabled' });
+    const bin = findCloudflared();
+    if (!bin) return setTunnel({ state: 'missing' });
+    setTunnel({ state: 'starting', since: now() });
+    const proc = spawn(bin, ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    tunnelProc = proc;
+    let log = '';
+    const onData = (b) => {
+      log = (log + b.toString()).slice(-4000);
+      const m = log.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (m && !found && tunnelProc === proc) { found = true; clearTimeout(timer); ready(m[0]); }
+    };
+    // cloudflared prints the URL a few seconds before the hostname resolves. Report "on" only once the link answers
+    // (looked up on public DNS), so nobody opens it too early and gets a cached "not found" from their resolver.
+    let found = false;
+    const ready = async (u) => {
+      const host = new URL(u).hostname, resolver = new dns.promises.Resolver({ timeout: 3000, tries: 1 });
+      resolver.setServers(['1.1.1.1', '8.8.8.8']);
+      const probe = (ip) => new Promise((ok) => {
+        const r = https.get({ host: ip, servername: host, headers: { host }, path: `/api/health?g=${guestKey}`, timeout: 4000 }, (res) => { res.resume(); ok(res.statusCode === 200); });
+        r.on('error', () => ok(false)); r.on('timeout', () => { r.destroy(); ok(false); });
+      });
+      for (let i = 0; i < 20 && tunnelProc === proc; i++) {
+        const ip = (await resolver.resolve4(host).catch(() => []))[0];
+        if (ip && await probe(ip)) break;
+        await sleep(1500);
+      }
+      if (tunnelProc === proc && tunnel.state === 'starting') setTunnel({ state: 'on', url: u, since: now() });
+    };
+    proc.stdout.on('data', onData); proc.stderr.on('data', onData);
+    const timer = setTimeout(() => { if (tunnelProc === proc && tunnel.state === 'starting') { proc.kill(); } }, 45000);
+    proc.on('exit', () => {
+      clearTimeout(timer);
+      if (tunnelProc !== proc) return;
+      tunnelProc = null;
+      if (tunnel.state === 'stopping') return setTunnel({ state: 'off' });
+      const last = log.trim().split('\n').filter((l) => /ERR|error|failed/i.test(l)).slice(-2).join(' ').slice(0, 300);
+      setTunnel({ state: 'error', error: last || 'cloudflared exited' });
+    });
+    proc.on('error', (e) => { if (tunnelProc === proc) { tunnelProc = null; setTunnel({ state: 'error', error: String(e.message) }); } });
+  }
+  function stopTunnel(rotate) {
+    if (tunnelProc) { tunnel = { state: 'stopping' }; try { tunnelProc.kill(); } catch {} }
+    else tunnel = { state: 'off' };
+    // closing the share also invalidates every guest link handed out so far
+    if (rotate) guestKey = crypto.randomBytes(12).toString('hex');
+    saveInfo(); broadcast('change', { at: Date.now() });
+  }
+  const info = { type: 'server-started', version: VERSION, pid: process.pid, port, key, guest_key: guestKey, host, project: PROJECT, url, ...(teamUrl() ? { team_url: teamUrl() } : {}), rounds_dir: ROUNDS, state_dir: STATE, started: now() };
   writeJSON(INFO, info);
+  if (args.remote) startTunnel();
   try { fs.rmSync(path.join(STATE, 'stopped'), { force: true }); } catch {}
   if (args.foreground) print(info);
 
@@ -484,6 +604,7 @@ async function serve() {
 
   function shutdown(reason) {
     clearInterval(watcher);
+    if (tunnelProc) { try { tunnelProc.kill(); } catch {} }
     try { fs.writeFileSync(path.join(STATE, 'stopped'), JSON.stringify({ reason, at: now() })); } catch {}
     const cur = readJSON(INFO);
     if (cur && cur.pid === process.pid) { cur.stopped = now(); cur.pid = null; writeJSON(INFO, cur); }
@@ -660,7 +781,7 @@ async function present() {
   }
   const errs = recentErrors(id).filter((e) => Date.parse(e.at) > Date.now() - 10 * 60000);
   print({
-    type: 'presented', round: id, url: info?.url || null, question: r.question || r.title,
+    type: 'presented', round: id, studio_language: studioLang(), url: info?.url || null, question: r.question || r.title,
     variants: r.variants.map((v) => `${v.id.toUpperCase()} — ${v.label}`),
     ...(errs.length ? { render_errors: errs } : {}),
     tell_user: 'Give the user the url and one or two sentences on what they are comparing. This command keeps waiting for their decision.',
@@ -703,11 +824,13 @@ async function start() {
   const info = readJSON(INFO);
   if (info && pidAlive(info.pid) && await health(info)) {
     if (args.open) openBrowser(info.url);
+    if (args.remote) return share();
     return print({ ...info, type: 'server-already-running' });
   }
   if (args.foreground) return serve();
   const passthrough = ['project', 'port', 'host', 'url-host', 'idle'].flatMap((k) => (args[k] ? [`--${k}`, String(args[k])] : []));
   if (args.team) passthrough.push('--team');
+  if (args.remote) passthrough.push('--remote');
   const logFile = path.join(STATE, 'server.log');
   const out = fs.openSync(logFile, 'a');
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve', '--project', PROJECT, ...passthrough], { detached: true, stdio: ['ignore', out, out], windowsHide: true });
@@ -746,9 +869,9 @@ async function status() {
   const r = latest && loadRound(latest);
   const pend = pendingEntries();
   print({
-    running: alive, version: VERSION, url: alive ? info.url : null, ...(alive && info.team_url ? { team_url: info.team_url } : {}), project: PROJECT, rounds_dir: ROUNDS,
+    running: alive, version: VERSION, url: alive ? info.url : null, ...(alive && info.team_url ? { team_url: info.team_url } : {}), ...(alive && info.remote_url ? { remote_url: info.remote_url } : {}), project: PROJECT, rounds_dir: ROUNDS,
     latest_round: r ? { id: r.id, title: r.title, variants: r.variants.map((v) => `${v.id}${v.ready ? '' : ' (missing)'}`), decision: r.decision ? { action: r.decision.action, selected: r.decision.selected, consumed: r.decision.consumed } : null } : null,
-    pending_decisions: pend.length,
+    pending_decisions: pend.length, ...langNote(),
     hint: alive ? (pend.length ? 'Decisions are waiting: run `wait` to receive them.' : undefined) : 'Run: node <skill>/scripts/studio.mjs start --project <dir> --open',
   });
 }
@@ -777,7 +900,7 @@ function newRound() {
   };
   writeJSON(path.join(dir, 'round.json'), manifest);
   setAgent('working', { round: id });
-  print({ type: 'round-created', id, dir, group: group || null, ...(() => { const w = []; if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".'); if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`); return w.length ? { warning: w.join(' ') } : {}; })(), manifest: path.join(dir, 'round.json'), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), then: 'Write every variant file, fill label/notes in round.json, then run `present`.' });
+  print({ type: 'round-created', id, dir, group: group || null, ...(() => { const w = []; if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".'); if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`); return w.length ? { warning: w.join(' ') } : {}; })(), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), then: 'Write every variant file, fill label/notes in round.json, then run `present`.' });
 }
 
 function list() {
@@ -830,7 +953,7 @@ function demo() {
 
 function help() {
   process.stdout.write(`Variant Studio ${VERSION}
-  start     start (or reuse) the preview server        --project DIR --open --port N --host H --team --foreground --idle MIN
+  start     start (or reuse) the preview server        --project DIR --open --port N --host H --team --remote --foreground --idle MIN
   new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --kind component|section|page --viewports laptop,mobile --variants a,b,c --parent ID
   present   hand the latest round to the user and wait for the decision   --round ID --timeout SEC
   wait      wait for the next decision (exit 2 = still waiting: run it again)   --round ID --timeout SEC
@@ -843,12 +966,27 @@ function help() {
   open      open the gallery in the default browser
   build     write a self-contained gallery.html        --out FILE --round ID --team
   demo      add a demo round (product card)
+  share     share the studio outside your network (Cloudflare tunnel, guests can view and vote)   --stop
   stop      stop the server
 `);
 }
 
+// share the running studio outside the local network through a Cloudflare quick tunnel (--stop to close it)
+async function share() {
+  const info = readJSON(INFO);
+  if (!(info && pidAlive(info.pid) && await health(info))) { print({ type: 'error', message: 'the studio is not running: run `start` first (or `start --remote`)' }); process.exit(1); }
+  const call = async (body) => (await fetch(`http://127.0.0.1:${info.port}/api/remote?k=${info.key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+  if (args.stop) { await call({ on: false }); return print({ type: 'remote-stopped', note: 'Guest links no longer work.' }); }
+  let st = await call({ on: true });
+  for (let i = 0; i < 100 && st.state === 'starting'; i++) { await sleep(500); st = (await (await fetch(`http://127.0.0.1:${info.port}/api/state?k=${info.key}`)).json()).remote; }
+  if (st.state === 'on') return print({ type: 'remote-on', guest_url: st.guest_url, tell_user: 'Send guest_url to teammates outside the network: they can view and vote, not decide. Stop with `share --stop`.' });
+  const why = { missing: 'cloudflared is not installed. Re-run the Variant Studio installer and enable remote sharing, or install cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).', disabled: 'Remote sharing is turned off in ~/.variant-studio/config.json (remote.enabled). Re-run the installer to enable it.' }[st.state];
+  print({ type: 'error', state: st.state, message: why || st.error || 'the tunnel did not start' });
+  process.exit(1);
+}
+
 const commands = {
-  start, serve, stop, status, wait, present, decision, inbox, list, groups, build, demo, help,
+  share, start, serve, stop, status, wait, present, decision, inbox, list, groups, build, demo, help,
   new: newRound,
   errors: () => print(recentErrors(args.round)),
   open: () => { const i = readJSON(INFO); if (!i) return print({ type: 'not-running' }); openBrowser(i.url); print({ type: 'opened', url: i.url }); },

@@ -185,3 +185,90 @@ function buildTree() {
   if (!S.data.rounds.length) wrap.append(h('div', { class: 'empty' }, h('h2', {}, t('No rounds yet'))));
   return wrap;
 }
+
+// ---------------- variants map: per subject, the variant chosen in each round and where it led ----------------
+function chosenOf(r) {
+  const ap = approvedOf(r); if (ap) return [ap];
+  const d = r.decision; if (!d || d.action === 'unapprove') return [];
+  return (d.selected || []).map(s => s.split('/').pop()).filter(id => r.variants.some(v => v.id === id));
+}
+function buildMap() {
+  const subj = (r) => [r.group || t('Ungrouped'), r.subgroup].filter(Boolean).join(' / ');
+  const bySub = new Map();
+  for (const r of S.data.rounds) { const k = subj(r); if (!bySub.has(k)) bySub.set(k, []); bySub.get(k).push(r); }
+  const cur = round(S.roundId === SHORT ? null : S.roundId) || S.data.rounds[S.data.rounds.length - 1];
+  const pick = S.mapSubj === '*' ? '*' : bySub.has(S.mapSubj) ? S.mapSubj : cur ? subj(cur) : '*';
+  const wrap = h('div', { class: 'vmap' });
+  const sel = h('select', { class: 'tx', 'aria-label': t('Subject'), onchange: () => { S.mapSubj = sel.value; persist(); renderRound(true); } },
+    h('option', { value: '*' }, t('All subjects')), ...[...bySub.keys()].reverse().map(k => h('option', { value: k }, k)));
+  sel.value = pick;
+  const size = h('input', { type: 'range', min: 180, max: 420, step: 20, value: S.mapSize, 'aria-label': t('Tile size') });
+  size.oninput = () => { S.mapSize = Number(size.value); renderRound(true); };
+  size.onchange = persist;
+  wrap.append(h('div', { class: 'ov-h' }, sel, h('span', { class: 'sp' }), h('span', { class: 'hint' }, t('Tile size')), size));
+  const icons = stIcon(), titles = stTitle();
+  const W = S.mapSize, H = Math.round(W * 0.75) + 92, GX = 64, GY = 28;
+  const node = (r) => {
+    const ap = approvedOf(r), chosen = chosenOf(r), st = statusOf(r);
+    const it = (v) => ({ r, v, key: v.id, fk: r.id + '/' + v.id });
+    const open = (v) => { S.roundId = r.id; S.follow = false; S.prevLayout = 'grid'; S.layout = 'grid'; openFocus(it(v).fk); };
+    const hero = r.variants.find(v => v.id === chosen[0]);
+    const box = h('div', { class: 'box' + (hero ? '' : ' mosaic') });
+    for (const v of hero ? [hero] : r.variants.slice(0, 4)) {
+      const cell = h('button', { class: 'cell', title: t('Open {x}', { x: labelOf(it(v)) }), onclick: () => open(v) });
+      if (v.ready) cell.append(makeFrame(it(v), { role: 'thumb' }).wrap);
+      box.append(cell);
+    }
+    const chips = h('div', { class: 'chips' }, ...r.variants.map(v => h('button', {
+      class: 'chip' + (ap === v.id ? ' ap' : chosen.includes(v.id) ? ' on' : ''), 'data-tip': labelOf(it(v)), onclick: () => open(v),
+    }, v.id.length <= 2 ? v.id.toUpperCase() : '·')));
+    return h('article', { class: 'mnode' + (r.id === S.roundId ? ' cur' : '') + (ap ? ' approved' : '') },
+      h('button', { class: 'mh', title: (r.question || r.title) + ': ' + titles[st], onclick: () => selectRound(r.id) },
+        h('small', {}, rnum(r.id)), h('b', {}, r.title), h('span', { class: 'st ' + st, html: icons[st] || '' })),
+      box,
+      h('div', { class: 'mf' }, chips, h('span', { class: 'lab' }, hero ? labelOf(it(hero)) : st === 'gen' ? t('Generating…') : chosen.length ? '' : t('Waiting for your decision'))));
+  };
+  const edgeTip = (r) => ({ choose: t('Approve'), revise: t('Request changes'), remix: t('Combine'), more: t('More like this'), regenerate: t('Start over') })[r.decision?.action] || '';
+  const subjects = pick === '*' ? [...bySub.keys()].reverse() : [pick];
+  for (const k of subjects) {
+    const list = bySub.get(k) || [];
+    const ids = new Set(list.map(r => r.id));
+    const kids = (id) => list.filter(r => r.parent === id);
+    const roots = list.filter(r => !r.parent || !ids.has(r.parent));
+    // git-style layout: a round sits on the row of its first child, so the main line runs straight and branches drop below
+    const pos = new Map(); let rows = 0, cols = 0;
+    const place = (r, depth) => {
+      const ch = depth < 30 ? kids(r.id) : [];
+      let row;
+      if (!ch.length) row = rows++;
+      else { ch.forEach(c => place(c, depth + 1)); row = pos.get(ch[0].id).row; }
+      pos.set(r.id, { row, depth }); cols = Math.max(cols, depth + 1);
+    };
+    roots.forEach(r => place(r, 0));
+    const board = h('div', { class: 'mboard' });
+    board.style.width = (cols * (W + GX) - GX) + 'px'; board.style.height = (rows * (H + GY) - GY) + 'px';
+    board.style.setProperty('--mw', W + 'px'); board.style.setProperty('--mh', H + 'px');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'medges'); svg.setAttribute('width', board.style.width); svg.setAttribute('height', board.style.height);
+    board.append(svg);
+    for (const r of list) {
+      const p = pos.get(r.id); if (!p) continue;
+      const x = p.depth * (W + GX), y = p.row * (H + GY);
+      const n = node(r); n.style.left = x + 'px'; n.style.top = y + 'px';
+      board.append(n);
+      if (r.parent && pos.has(r.parent)) {
+        const q = pos.get(r.parent), par = list.find(o => o.id === r.parent);
+        const x1 = q.depth * (W + GX) + W, y1 = q.row * (H + GY) + H / 2, x2 = x, y2 = y + H / 2, mx = (x1 + x2) / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`);
+        path.setAttribute('class', approvedOf(r) ? 'ap' : '');
+        svg.append(path);
+        const tip = edgeTip(par);
+        if (tip) board.append(h('span', { class: 'mact ' + par.decision.action, 'data-tip': tip, style: `left:${mx - 11}px;top:${(y1 + y2) / 2 - 11}px`, html: icons[par.decision.action] || '' }));
+      }
+    }
+    wrap.append(h('section', { class: 'vt-g' }, h('h3', {}, k, h('small', {}, t('{n} rounds', { n: list.length }))), h('div', { class: 'mscroll' }, board)));
+  }
+  if (!S.data.rounds.length) wrap.append(h('div', { class: 'empty' }, h('h2', {}, t('No rounds yet'))));
+  return wrap;
+}

@@ -16,7 +16,7 @@ function renderInspector() {
   icon($('#inspClose'), 'x'); $('#inspClose').title = t('Close (I)');
   const sel = $('#inspSel'); sel.innerHTML = '';
   const body = $('#inspBody'); body.innerHTML = '';
-  if (!c || !c.items.length || ['tree', 'overview'].includes(S.layout)) { $('.in-sel').style.display = 'none'; body.append(h('p', { class: 'hint' }, t('Open a round to inspect its variants.'))); return; }
+  if (!c || !c.items.length || SPECIAL_VIEWS.includes(S.layout)) { $('.in-sel').style.display = 'none'; body.append(h('p', { class: 'hint' }, t('Open a round to inspect its variants.'))); return; }
   $('.in-sel').style.display = S.inspTab === 'tune' ? 'none' : '';
   c.items.forEach(it => sel.append(h('option', { value: it.fk, selected: it.fk === S.active }, `${letterOf(c, it)} · ${labelOf(it)}${S.audit[it.fk]?.length ? `  ⚠ ${S.audit[it.fk].length}` : ''}`)));
   sel.onchange = () => { S.active = sel.value; updateCards(); renderInspector(); };
@@ -202,8 +202,8 @@ $('#popLock').onclick = () => savePop(true);
 $('#popText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) savePop(false); if (e.key === 'Escape') closePop(); });
 
 // ---------------- sheets ----------------
-function openSheet(title, fill) {
-  $('#shTitle').textContent = title; icon($('#shClose'), 'x'); $('#shClose').title = t('Close');
+function openSheet(title, fill, id = '') {
+  $('#shTitle').textContent = title; $('#shTitle').dataset.sheet = id; icon($('#shClose'), 'x'); $('#shClose').title = t('Close');
   const b = $('#shBody'); b.innerHTML = ''; fill(b);
   $('#sheet').classList.add('show');
 }
@@ -219,7 +219,8 @@ const sw = (label, checked, on, hint) => {
 
 function openSettings(focus) {
   openSheet(t('Settings'), (b) => {
-    const langSeg = h('div', { class: 'seg' }); seg(langSeg, [['en', 'English'], ['it', 'Italiano']], S.lang, (v) => { S.lang = v; persist(); applyI18n(); openSettings(); renderAll(); });
+    const langSeg = h('div', { class: 'flags', role: 'group', 'aria-label': t('Language') },
+      ...LANGS.map(l => h('button', { title: l.name, 'aria-label': l.name, 'aria-pressed': String(S.lang === l.code), lang: l.code, html: l.flag, onclick: () => setLang(l.code) })));
     const uiSeg = h('div', { class: 'seg' }); seg(uiSeg, [['dark', t('Dark')], ['light', t('Light')]], S.ui, (v) => { setUi(v); openSettings(); });
     const cvSeg = h('select', { class: 'tx', 'aria-label': t('Canvas behind variants') });
     [['light', t('Soft grey')], ['white', t('White')], ['dark', t('Dark')], ['checker', t('Transparent')], ['none', t('Page background')]].forEach(([v, l]) => cvSeg.append(h('option', { value: v, selected: S.canvas === v }, l)));
@@ -236,7 +237,7 @@ function openSettings(focus) {
         if (v && 'Notification' in window && Notification.permission === 'default') { const p = await Notification.requestPermission(); if (p !== 'granted') toast(t('The browser blocked notifications')); }
       }, t('A system notification when the tab is in the background.')),
       sw(t('Play a sound'), S.sound, (v) => { S.sound = v; persist(); if (v) chime(); }));
-    b.append(h('h4', {}, t('What goes to the agent')),
+    if (!TEAM) b.append(h('h4', {}, t('What goes to the agent')),
       sw(t('Screenshots of the selected variants'), S.sendShots, (v) => { S.sendShots = v; persist(); }, t('The agent sees the variants exactly as you saw them.')),
       sw(t('Accessibility issues'), S.sendAudit, (v) => { S.sendAudit = v; persist(); }));
     const scSeg = h('div', { class: 'seg' }); seg(scSeg, [['1', '1×'], ['2', '2×'], ['3', '3×']], String(S.exportScale), (v) => { S.exportScale = Number(v); persist(); });
@@ -271,18 +272,18 @@ function openSettings(focus) {
         const res = await fetch('/api/brand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled, colors: out, fonts: { heading: fh.value.trim(), body: fb.value.trim() } }) });
         if (res.ok) { toast(t('Brand palette saved'), 'good'); await refresh(); reloadFrames(); } else toast(t('Error {n}', { n: res.status }));
       } }, t('Save palette'))));
-    b.append(sec);
+    if (!TEAM) b.append(sec);
     // saved prompts
     b.append(h('h4', {}, t('Saved prompts')));
     if (!S.myChips.length) b.append(h('p', { class: 'hint' }, t('Write a note in the bar, open the prompt chips and choose “Save this note as a chip”.')));
     S.myChips.forEach((cp, i) => b.append(h('div', { class: 'switch' }, h('span', {}, cp), h('button', { class: 'ib sm', title: t('Remove'), 'aria-label': t('Remove'), html: I.x, onclick: () => { S.myChips.splice(i, 1); persist(); renderChips(); openSettings(); } }))));
     b.append(h('div', { class: 'addrow' }, h('button', { class: 'btn sm ghost', html: I.cmd + `<span>${t('Keyboard shortcuts')}</span>`, onclick: openHelp })));
     if (focus === 'brand') setTimeout(() => $('#brandSec')?.scrollIntoView({ block: 'start' }), 30);
-  });
+  }, 'settings');
 }
 
 function openHelp() {
-  const keys = [['1–9', t('Select a variant')], ['G / L / X', t('Grid, list, compare')], ['F / Z', t('Full screen on the active variant')], ['← →', t('Previous / next variant')], ['O / T', t('Overview, version tree')], ['C', t('Comment on an element (or lock it)')], ['E', t('Edit text inline')], ['I', t('Inspector: tune, tokens, checklist, audit')], ['D', t('Variant theme light / dark')], ['N', t('Show all descriptions')], ['+ − 0', t('Zoom')], ['/', t('Write a note')], ['Ctrl/⌘ Enter', t('Send: approve one, or request changes / combine')], ['Ctrl/⌘ K', t('Command palette')], ['R', t('Rounds panel')], ['U', t('Studio theme')], ['Esc', t('Close, leave full screen, stop a tool')]];
+  const keys = [['1–9', t('Select a variant')], ['G / L / X', t('Grid, list, compare')], ['F / Z', t('Full screen on the active variant')], ['← →', t('Previous / next variant')], ['O / T / M', t('Overview, version tree, variants map')], ['C', t('Comment on an element (or lock it)')], ['E', t('Edit text inline')], ['I', t('Inspector: tune, tokens, checklist, audit')], ['D', t('Variant theme light / dark')], ['N', t('Show all descriptions')], ['+ − 0', t('Zoom')], ['/', t('Write a note')], ['Ctrl/⌘ Enter', t('Send: approve one, or request changes / combine')], ['Ctrl/⌘ K', t('Command palette')], ['R', t('Rounds panel')], ['U', t('Studio theme')], ['Esc', t('Close, leave full screen, stop a tool')]];
   openSheet(t('Keyboard shortcuts'), (b) => { const g = h('div', { class: 'keys' }); keys.forEach(([k, l]) => g.append(h('kbd', {}, k), h('span', {}, l))); b.append(g); });
 }
 
@@ -299,10 +300,32 @@ function openTeam() {
       return;
     }
     const url = S.data.team_url;
+    const copyBtn = (u) => h('button', { class: 'btn sm ghost', html: I.copy + `<span>${t('Copy')}</span>`, onclick: () => navigator.clipboard.writeText(u).then(() => toast(t('Link copied'))) });
+    b.append(h('p', { class: 'hint' }, t('Team links let people view the variants, vote and comment. They cannot send decisions or open your project files.')));
     b.append(h('h4', {}, t('Review on your network')),
-      url ? h('p', {}, t('Teammates on your network can open this link, enter their name and vote:'), h('br'), h('code', {}, url), ' ', h('button', { class: 'btn sm ghost', html: I.copy + `<span>${t('Copy')}</span>`, onclick: () => navigator.clipboard.writeText(url).then(() => toast(t('Link copied'))) }))
-        : h('p', {}, t('Ask the agent to restart the studio with'), ' ', h('code', {}, 'start --team'), ' ', t('to get a link teammates on your network can open.')),
-      h('h4', {}, t('Review offline')),
+      url ? h('p', {}, t('Teammates on your network can open this link, enter their name and vote:'), h('br'), h('code', {}, url), ' ', copyBtn(url))
+        : h('p', {}, t('Ask the agent to restart the studio with'), ' ', h('code', {}, 'start --team'), ' ', t('to get a link teammates on your network can open.')));
+    // remote sharing through a Cloudflare tunnel
+    const rm = S.data.remote || { state: 'off' };
+    const rbox = h('div', {});
+    const setRemote = async (on) => {
+      try { await fetch('/api/remote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }); } catch { toast(t('Could not reach the studio')); }
+      await refresh(); openTeam();
+    };
+    if (STATIC) rbox.append(h('p', { class: 'hint' }, t('Remote sharing needs the live studio.')));
+    else if (rm.state === 'on') rbox.append(
+      h('p', {}, t('Anyone with this link can view and vote from anywhere, until you stop sharing:'), h('br'), h('code', {}, rm.guest_url), ' ', copyBtn(rm.guest_url)),
+      h('div', { class: 'addrow' }, h('span', { class: 'hint' }, t('Since {x}', { x: (rm.since || '').slice(11, 16) })), h('span', { class: 'sp' }),
+        h('button', { class: 'btn sm', html: I.x + `<span>${t('Stop sharing')}</span>`, title: t('Closes the tunnel and invalidates every guest link'), onclick: () => setRemote(false) })));
+    else if (rm.state === 'starting' || rm.state === 'stopping') { rbox.append(h('p', { class: 'hint' }, rm.state === 'starting' ? t('Opening the tunnel…') : t('Closing…'))); setTimeout(() => { if ($('#sheet').classList.contains('show') && $('#shTitle').dataset.sheet === 'team') refresh().then(openTeam); }, 1200); }
+    else if (rm.enabled === false || rm.state === 'disabled') rbox.append(h('p', { class: 'hint' }, t('Remote sharing is turned off. Run the Variant Studio installer again and enable it.')));
+    else if (!rm.available || rm.state === 'missing') rbox.append(h('p', { class: 'hint' }, t('Remote sharing needs cloudflared. Run the Variant Studio installer again and enable remote sharing, or install cloudflared yourself.')));
+    else rbox.append(
+      rm.state === 'error' ? h('p', { class: 'hint', style: 'color:var(--bad)' }, t('The tunnel stopped: {x}', { x: rm.error || '?' })) : null,
+      h('p', {}, t('Creates a temporary public link through Cloudflare. Guests can view and vote; closing it invalidates the link.')),
+      h('div', { class: 'addrow' }, h('span', { class: 'sp' }), h('button', { class: 'btn pri sm', html: I.globe + `<span>${t('Share outside your network')}</span>`, onclick: () => setRemote(true) })));
+    b.append(h('h4', {}, t('Share outside your network')), rbox);
+    b.append(h('h4', {}, t('Review offline')),
       h('p', {}, t('Ask the agent to run'), ' ', h('code', {}, 'build --team'), ' ', t('and send the gallery file. Teammates vote and download a votes file; import it here.')),
       h('div', { class: 'addrow' }, h('button', { class: 'btn sm', disabled: STATIC || null, html: I.upload + `<span>${t('Import votes')}</span>`, onclick: importVotes })));
     const voters = new Map();
@@ -311,7 +334,7 @@ function openTeam() {
     if (!voters.size) b.append(h('p', { class: 'hint' }, t('No votes yet.')));
     voters.forEach((n, who) => b.append(h('div', { class: 'switch' }, h('span', {}, who), h('span', { class: 'hint' }, t('{n} votes', { n })))));
     b.append(h('p', { class: 'hint' }, t('Team votes for the round go with your decision; your own choice still wins.')));
-  });
+  }, 'team');
 }
 function askVoterName() {
   openSheet(t('Welcome'), (b) => {
@@ -377,6 +400,7 @@ function commands() {
   add(t('View'), t('Compare: A vs B tournament'), () => { S.cmp.mode = 'duel'; setLayout('compare'); });
   add(t('View'), t('Overview'), () => setLayout('overview'), 'O');
   add(t('View'), t('Version tree'), () => setLayout('tree'), 'T');
+  add(t('View'), t('Variants map'), () => setLayout('map'), 'M');
   [['auto', t('Fit to card')], ['mobile', t('Mobile') + ' 390'], ['tablet', t('Tablet') + ' 820'], ['laptop', t('Laptop') + ' 1280'], ['desktop', t('Desktop') + ' 1440']].forEach(([k, l]) => add(t('Viewport'), l, () => setVp(k)));
   add(t('View'), (S.device ? t('Hide') : t('Show')) + ' ' + t('device frames'), () => { S.device = !S.device; persist(); renderRound(true); });
   add(t('View'), t('Zoom in'), () => zoomAll(1), '+'); add(t('View'), t('Zoom out'), () => zoomAll(-1), '−'); add(t('View'), t('Zoom to fit'), () => zoomAll(0), '0');
@@ -384,7 +408,7 @@ function commands() {
   add(t('View'), (S.notesAll ? t('Hide') : t('Show')) + ' ' + t('all descriptions'), toggleNotes, 'N');
   add(t('View'), (S.sync ? t('Disable') : t('Enable')) + ' ' + t('sync scroll'), () => { S.sync = !S.sync; persist(); });
   add(t('Studio'), t('Studio theme: {x}', { x: S.ui === 'dark' ? t('light') : t('dark') }), () => setUi(S.ui === 'dark' ? 'light' : 'dark'), 'U');
-  add(t('Studio'), t('Language: {x}', { x: S.lang === 'it' ? 'English' : 'Italiano' }), () => { S.lang = S.lang === 'it' ? 'en' : 'it'; persist(); applyI18n(); renderAll(); });
+  LANGS.filter(l => l.code !== S.lang).forEach(l => add(t('Studio'), t('Language: {x}', { x: l.name }), () => setLang(l.code)));
   add(t('Studio'), t('Rounds panel'), () => toggleDrawer(), 'R');
   add(t('Studio'), t('Settings'), () => openSettings());
   add(t('Studio'), t('Team'), () => openTeam());
@@ -397,7 +421,7 @@ function commands() {
   add(t('Tools'), t('Accessibility audit'), () => { S.inspTab = 'audit'; toggleInsp(true); });
   add(t('Tools'), t('Brand palette'), () => openSettings('brand'));
   if (!STATIC) add(t('Tools'), t('Attach reference image'), () => $('#fileIn').click());
-  if (c && !['tree', 'overview'].includes(S.layout)) {
+  if (c && !SPECIAL_VIEWS.includes(S.layout)) {
     c.items.forEach((it, i) => {
       add(t('Variant'), t('Select {x}', { x: `${letterOf(c, it)} · ${it.v.label}` }), () => toggleSel(it.key, it.fk), i < 9 ? String(i + 1) : null);
       add(t('Variant'), t('Full screen {x}', { x: `${letterOf(c, it)} · ${it.v.label}` }), () => openFocus(it.fk));

@@ -7,15 +7,27 @@ function applyI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { const v = t(el.dataset.i18nTitle); el.title = v; if (!el.textContent.trim()) el.setAttribute('aria-label', v.replace(/\s*\([^()]*\)\s*$/, '')); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  // titles set from code rather than data-i18n-title
+  $('#pickBtn').title = t('Comment on an element or lock it (C)');
+  $('#editBtn').title = t('Edit text inline (E)');
+  $('#inspBtn').title = t('Tune, tokens, checklist, audit (I)');
+  $('#note').setAttribute('aria-label', t('Note for the agent'));
+  if (TEAM) $('#rTeam').title = t('Your name and votes');
+}
+function setLang(code) {
+  if (!LANGS.some(l => l.code === code)) return;
+  S.lang = code; persist(); postLang(); window.hideTip?.(); applyI18n(); renderAll();
+  if ($('#sheet').classList.contains('show') && $('#shTitle').dataset.sheet === 'settings') openSettings();
 }
 
 // ---------------- rail and top bar ----------------
 (() => {
-  for (const [id, ic] of [['#rRounds', 'rounds'], ['#rShort', 'star'], ['#rTree', 'tree'], ['#rOverview', 'overview'], ['#rTeam', 'team'], ['#rCmd', 'cmd'], ['#rSettings', 'gear'], ['#pickBtn', 'pick'], ['#editBtn', 'edit'], ['#inspBtn', 'sliders']]) icon($(id), ic);
+  for (const [id, ic] of [['#rRounds', 'rounds'], ['#rShort', 'star'], ['#rTree', 'tree'], ['#rOverview', 'overview'], ['#rMap', 'map'], ['#rTeam', 'team'], ['#rCmd', 'cmd'], ['#rSettings', 'gear'], ['#pickBtn', 'pick'], ['#editBtn', 'edit'], ['#inspBtn', 'sliders']]) icon($(id), ic);
   $('#rRounds').onclick = () => toggleDrawer();
   $('#rShort').onclick = () => selectRound(SHORT);
   $('#rTree').onclick = () => setLayout(S.layout === 'tree' ? (S.prevLayout || 'grid') : 'tree');
   $('#rOverview').onclick = () => setLayout(S.layout === 'overview' ? (S.prevLayout || 'grid') : 'overview');
+  $('#rMap').onclick = () => setLayout(S.layout === 'map' ? (S.prevLayout || 'grid') : 'map');
   $('#rTeam').onclick = openTeam;
   $('#rCmd').onclick = openPalette;
   $('#rSettings').onclick = () => openSettings();
@@ -25,11 +37,7 @@ function applyI18n() {
   $('#editBtn').onclick = () => setMode(S.mode === 'edit' ? '' : 'edit');
   $('#inspBtn').onclick = () => toggleInsp();
   $('#inspClose').onclick = () => toggleInsp(false);
-  $('#pickBtn').title = t('Comment on an element or lock it (C)');
-  $('#editBtn').title = t('Edit text inline (E)');
-  $('#inspBtn').title = t('Tune, tokens, checklist, audit (I)');
   $('#railQ').addEventListener('input', (e) => { S.railQ = e.target.value; renderRail(); });
-  if (TEAM) { $('#rTeam').title = t('Your name and votes'); }
 })();
 
 // ---------------- keyboard ----------------
@@ -64,6 +72,7 @@ addEventListener('keydown', (e) => {
   const map = {
     g: () => setLayout('grid'), f: () => setLayout('focus'), z: () => S.layout === 'focus' ? closeFocus() : setLayout('focus'), l: () => setLayout('list'), x: () => setLayout('compare'),
     o: () => setLayout(S.layout === 'overview' ? (S.prevLayout || 'grid') : 'overview'), t: () => setLayout(S.layout === 'tree' ? (S.prevLayout || 'grid') : 'tree'),
+    m: () => setLayout(S.layout === 'map' ? (S.prevLayout || 'grid') : 'map'),
     c: () => setMode(S.mode === 'pick' ? '' : 'pick'), e: () => setMode(S.mode === 'edit' ? '' : 'edit'), i: () => toggleInsp(),
     n: toggleNotes, d: () => setTheme(S.theme === 'light' ? 'dark' : 'light'), u: () => setUi(S.ui === 'dark' ? 'light' : 'dark'), r: () => toggleDrawer(),
     '+': () => zoomAll(1), '=': () => zoomAll(1), '-': () => zoomAll(-1), '0': () => zoomAll(0), '?': openHelp,
