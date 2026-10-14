@@ -26,6 +26,15 @@ It works with Claude Code, Claude Desktop, Codex, Antigravity, Gemini CLI, Kilo 
 
 ## Made with DesignerSkill
 
+<p align="center">
+  <a href="https://github.com/Kekko16004/DesignerSkill">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Kekko16004/DesignerSkill/main/assets/brand/lockup-dark.png">
+      <img src="https://raw.githubusercontent.com/Kekko16004/DesignerSkill/main/assets/brand/lockup-light.png" alt="DesignerSkill" width="300">
+    </picture>
+  </a>
+</p>
+
 Variant Studio is developed in collaboration with [**DesignerSkill**](https://github.com/Kekko16004/DesignerSkill) by [Kekko16004](https://github.com/Kekko16004), and ships inside it as its variant gallery.
 
 DesignerSkill is a design skill for coding agents that steers away from generic, look-alike UI. Before writing any markup it studies real products similar to yours, fixes the design tokens (colors, type, spacing), then shows you several genuinely different directions in Variant Studio. After you choose, it checks the result for accessibility and common clichés, writes a design spec, and translates the approved design to your stack: HTML, React, React Native and others. It covers websites, phone apps and game UI.
