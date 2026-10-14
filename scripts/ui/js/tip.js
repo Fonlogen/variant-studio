@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — tooltips on every control, placed where they fit:
+// Variant Studio 3.1 — tooltips on every control, placed where they fit:
 // above by default, then below, right, left; data-tip-pos="bottom|right|left|top" sets the preferred side.
 // Text comes from title (taken over from the native tooltip), data-tip, aria-label, or the button's own text.
 'use strict';

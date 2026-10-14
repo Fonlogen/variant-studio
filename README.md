@@ -39,7 +39,7 @@ Variant Studio is developed in collaboration with [**DesignerSkill**](https://gi
 
 DesignerSkill is a design skill for coding agents that steers away from generic, look-alike UI. Before writing any markup it studies real products similar to yours, fixes the design tokens (colors, type, spacing), then shows you several genuinely different directions in Variant Studio. After you choose, it checks the result for accessibility and common clichés, writes a design spec, and translates the approved design to your stack: HTML, React, React Native and others. It covers websites, phone apps and game UI.
 
-Install Variant Studio on its own from this repository, or get it together with DesignerSkill from [its repository](https://github.com/Kekko16004/DesignerSkill), where its updater keeps Variant Studio current too.
+Install Variant Studio on its own, or say yes when the installer offers DesignerSkill: it is cloned to `~/.designer/DesignerSkill` and installed in the same agents, using this Variant Studio. You can also get both from [the DesignerSkill repository](https://github.com/Kekko16004/DesignerSkill), whose updater keeps Variant Studio current too.
 
 ## Install
 
@@ -59,7 +59,8 @@ One command installs and updates. It asks:
 
 1. **Which agents.** The ones found on your machine are already ticked; press `d` for detected only, `a` for all.
 2. **Remote sharing.** Say yes to install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (if it is missing) and let teammates outside your network open the studio. Say no and nothing extra is installed.
-3. **Globally or into one project.**
+3. **DesignerSkill too?** Say yes to install [DesignerSkill](https://github.com/Kekko16004/DesignerSkill) in the same agents (Claude Code, Codex, Antigravity, Kilo Code, Cursor, OpenCode, Copilot), wired to this Variant Studio.
+4. **Globally or into one project.**
 
 Already installed? Run the same command: it replaces the old files, keeps your config files and shows the version change. Node.js 18 or newer is the only requirement. More options under [Installation](#installation).
 
@@ -82,6 +83,16 @@ curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/instal
 
 Every round is kept, grouped by product area and subject, with iterations nested under the round they came from.
 
+## What's new in 3.1
+
+- **Remote sharing.** A temporary public link through a Cloudflare tunnel, for teammates anywhere (Team panel, or `share`). Guests view, vote and comment; only you decide. The installer can set up cloudflared for you.
+- **Variants map** (`M`). For each subject, the variant you chose in every round as a live thumbnail, with the branches that led from one round to the next.
+- **Five languages.** English, Italian, Spanish, French and Russian. The studio starts from your browser's language, and the agent writes round titles, questions and labels in the same language.
+- **Tall variants scroll inside their card**, so the grid stays one screen high. *Full height* in the viewport menu lets cards grow instead.
+- **Tooltips on every control**, shown almost instantly and placed wherever there is room.
+- **Installer and updater in one command.** Pick the agents (now also Claude Desktop and Cursor), choose remote sharing, and optionally install [DesignerSkill](https://github.com/Kekko16004/DesignerSkill) in the same agents. Running it again updates and keeps your config files.
+- Fixes: variant names no longer cut to one letter on narrow cards; inspector tabs no longer slide under the close button.
+
 ## What's new in 3.0
 
 **Fixes**
@@ -95,8 +106,7 @@ Every round is kept, grouped by product area and subject, with iterations nested
 
 **Look**
 - A new identity: the split‑V mark, a calm graphite theme with a light alternative, rounded and roomy so the previews get the space.
-- Interface in English, Italian, Spanish, French and Russian. It starts from your browser's language, and the agent writes round titles, questions and labels in the same language.
-- Tooltips on every control, shown almost instantly and placed wherever there is room.
+- Interface in English and Italian.
 
 **Tuning**
 - Controls declared by the agent for each round (radius, density, accent…) as sliders, pickers and selects.
@@ -112,7 +122,6 @@ Every round is kept, grouped by product area and subject, with iterations nested
 - Swipe and overlay compare with a difference blend, and before/after against the previous round.
 - A vs B tournament that ranks the variants for you.
 - Device frames, synced scrolling, version tree.
-- Variants map: for each subject, the variant you chose in every round as a live thumbnail, with the branches that led from one to the next.
 
 **Feedback and sharing**
 - Screenshots of what you saw go to the agent with the decision.
@@ -121,7 +130,6 @@ Every round is kept, grouped by product area and subject, with iterations nested
 - A notification and a sound when new variants are ready.
 - Export a variant as PNG, JPG, standalone HTML with your changes applied, or the original HTML. Ask the agent for a React, Vue, Svelte or Tailwind version.
 - Team review: teammates on your network open a link and vote, or you send them an offline gallery and import their votes.
-- Remote sharing: a temporary public link through a Cloudflare tunnel, for teammates anywhere. Guests view and vote; only you decide.
 
 ## Features
 
@@ -173,6 +181,7 @@ On Windows `~` is your user folder (`C:\Users\<you>`).
 | `--detected` | `-Detected` | Every agent found on this machine |
 | `--all` | `-All` | Every supported agent |
 | `--remote` / `--no-remote` | `-Remote` / `-NoRemote` | Turn remote sharing on (installs cloudflared if needed) or off, without asking |
+| `--designer` / `--no-designer` | `-Designer` / `-NoDesigner` | Also install DesignerSkill in the chosen agents, or skip the question |
 | `--project [DIR]` | `-Project DIR` | Install into a project (committable) instead of your user profile |
 | `--link` | `-Link` | Symlink / junction to your clone, so `git pull` updates every agent |
 | `--uninstall` | `-Uninstall` | Remove the skill from the chosen agents |

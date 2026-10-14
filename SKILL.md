@@ -3,7 +3,7 @@ name: variant-studio
 description: Generate several design variants of any piece of UI — a single button, card, form, navbar, section, or full page — show them side by side in a live browser gallery, and let the user pick one, request changes, combine variants, or comment on specific elements, then continue from their structured decision. Use this whenever the user wants to explore, compare, or choose between design options or mockups ("show me a few versions", "give me some alternatives for this card", "fammi vedere delle varianti", "proposte di design", "quale layout è meglio", "redesign this component", "A/B options"), whenever a UI decision would be clearer seen than described, and whenever the user asks for a visual/browser companion or preview. Works in Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI and any agent that can run Node.js.
 ---
 
-# Variant Studio 3.0
+# Variant Studio 3.1
 
 A local gallery that turns "which design do you want?" into a visual decision. You write each variant as a small HTML file. The user sees them live in the browser, compares them (grid, full screen, list, swipe, overlay, A-vs-B tournament, overview of every round), tunes them (controls you declare, fonts, CSS tokens, brand palette, copy), comments on or locks single elements, and sends a decision. You read that decision as JSON and act on it.
 

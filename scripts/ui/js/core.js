@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — core: state, data, frames. Classic script; files share the global scope.
+// Variant Studio 3.1 — core: state, data, frames. Classic script; files share the global scope.
 'use strict';
 const STATIC = window.__VS_STATIC__ || null;
 const SHORT = '#shortlist';

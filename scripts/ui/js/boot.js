@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — keyboard, live connection, wiring and start-up.
+// Variant Studio 3.1 — keyboard, live connection, wiring and start-up.
 'use strict';
 
 function renderAll() { renderRail(); renderRound(true); renderDock(); renderInspector(); renderAgent(); }

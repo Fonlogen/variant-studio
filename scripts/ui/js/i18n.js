@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — UI strings. Keys are the English text; t() falls back to the key.
+// Variant Studio 3.1 — UI strings. Keys are the English text; t() falls back to the key.
 // S (core.js) loads after this file, so the language is read lazily.
 'use strict';
 

@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — French UI strings (keys are the English text).
+// Variant Studio 3.1 — French UI strings (keys are the English text).
 'use strict';
 I18N.fr = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× est net sur les écrans Retina ; 3× pour l\'impression et les présentations.',

@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — prompt dock: selection, note, chips, references, voice, sending, undo and revoke.
+// Variant Studio 3.1 — prompt dock: selection, note, chips, references, voice, sending, undo and revoke.
 'use strict';
 
 const QUICK = ['More minimal', 'More contrast', 'More whitespace', 'Denser', 'Bigger type', 'Stronger hierarchy', 'Sharper corners', 'Softer corners', 'More premium', 'More playful', 'Warmer palette', 'Cooler palette', 'Fewer colors', 'Better empty and loading states'];

@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — inspector, element popover, settings / team / help sheets, command palette.
+// Variant Studio 3.1 — inspector, element popover, settings / team / help sheets, command palette.
 'use strict';
 
 const FONTS = ['Inter', 'Instrument Sans', 'Figtree', 'Onest', 'Manrope', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Sora', 'Space Grotesk', 'Bricolage Grotesque', 'Work Sans', 'IBM Plex Sans', 'Geologica', 'Fraunces', 'Instrument Serif', 'Newsreader', 'Source Serif 4', 'Lora', 'Playfair Display', 'DM Serif Display', 'JetBrains Mono', 'Space Mono'];

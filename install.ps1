@@ -1,5 +1,5 @@
 <#
-  Variant Studio 3.0 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
+  Variant Studio 3.1 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
 
     .\install.ps1                              interactive: pick agents, remote sharing, scope and mode
     .\install.ps1 -Agents claude,codex         non-interactive
@@ -7,10 +7,11 @@
     .\install.ps1 -All -Yes                    every supported agent, global scope
     .\install.ps1 -Project . -Agents copilot   install into a project instead of your user profile
     .\install.ps1 -Remote                      also install cloudflared and enable remote sharing (-NoRemote to turn it off)
+    .\install.ps1 -Designer                    also install DesignerSkill in the same agents (-NoDesigner to skip the question)
     .\install.ps1 -Link                        junction instead of copy (updates with `git pull`)
     .\install.ps1 -Uninstall -Agents claude
     .\install.ps1 -List                        show agents and paths
-    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0...) instead of the latest
+    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0, 3.1...) instead of the latest
 
   Running it again updates an existing install: the old files are replaced, your config files are kept.
 
@@ -34,6 +35,8 @@ param(
   [switch]$Copy,
   [switch]$Remote,
   [switch]$NoRemote,
+  [switch]$Designer,
+  [switch]$NoDesigner,
   [switch]$Uninstall,
   [switch]$List,
   [string]$Version
@@ -51,6 +54,10 @@ if ($Version) {
 $IsWin = ($PSVersionTable.PSEdition -eq 'Desktop') -or ($env:OS -eq 'Windows_NT')
 $UserHome = if ($IsWin -and $env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 $UserDir = Join-Path $UserHome '.variant-studio'
+$DsRepo = 'https://github.com/Kekko16004/DesignerSkill'
+$DsDir = Join-Path (Join-Path $UserHome '.designer') 'DesignerSkill'
+# Variant Studio agent id -> DesignerSkill host id (agents DesignerSkill does not support are left out)
+$DsSupported = @('claude', 'codex', 'antigravity', 'kilo', 'cursor', 'opencode', 'copilot')
 $DesktopZip = Join-Path (Join-Path $UserHome 'Downloads') "$Skill-skill.zip"
 
 # Id, Name, Global dir (under the user profile), Project dir, Detection dirs, Commands.
@@ -224,6 +231,36 @@ function Install-Cloudflared {
   finally { $ProgressPreference = $pp }
   return $null
 }
+function Install-Designer([string[]]$hosts, [string]$src) {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Warn 'DesignerSkill needs Node.js 18+ - skipped'; return $false }
+  try {
+    New-Item -ItemType Directory -Force -Path (Split-Path $DsDir -Parent) | Out-Null
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if ((Test-Path -LiteralPath (Join-Path $DsDir '.git')) -and $git) {
+      Say 'Updating DesignerSkill...' 'DarkGray'; & git -C $DsDir pull -q --ff-only
+    } elseif (Test-Path -LiteralPath (Join-Path $DsDir 'designer/install.ps1')) {
+    } elseif ($git) {
+      Say 'Downloading DesignerSkill from GitHub...' 'DarkGray'; & git clone -q --depth 1 $DsRepo $DsDir
+    } else {
+      Say 'Downloading DesignerSkill from GitHub...' 'DarkGray'
+      $t = New-TempDir; $z = Join-Path $t 'ds.zip'
+      $pp = $ProgressPreference; $ProgressPreference = 'SilentlyContinue'
+      Invoke-WebRequest -Uri 'https://codeload.github.com/Kekko16004/DesignerSkill/zip/refs/heads/main' -OutFile $z -UseBasicParsing
+      Expand-Archive -LiteralPath $z -DestinationPath $t -Force; $ProgressPreference = $pp
+      Move-Item -LiteralPath (Get-ChildItem -LiteralPath $t -Directory | Select-Object -First 1).FullName -Destination $DsDir
+      Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    $ps1 = Join-Path $DsDir 'designer/install.ps1'
+    if (-not (Test-Path -LiteralPath $ps1)) { return $false }
+    # DesignerSkill installs Variant Studio into the same agents too: hand it this very version, from a stable folder
+    $app = Join-Path $UserDir 'app'
+    if (Test-Path -LiteralPath $app) { Remove-Item -LiteralPath $app -Recurse -Force }
+    Copy-Skill $src $app
+    $exe = (Get-Process -Id $PID).Path
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $ps1 -Hosts ($hosts -join ',') -StudioPath $app -StudioMode copy | ForEach-Object { "    $_" }
+    return $true
+  } catch { Warn "DesignerSkill: $($_.Exception.Message)"; return $false }
+}
 function Write-UserConfig([bool]$enabled, [string]$cf) {
   New-Item -ItemType Directory -Force -Path $UserDir | Out-Null
   $file = Join-Path $UserDir 'config.json'
@@ -250,7 +287,7 @@ if ($List) {
 }
 
 Write-Host ''
-Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.0' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
+Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.1' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
 Say "Installs or updates the '$Skill' skill in your coding agents." 'DarkGray'
 Write-Host ''
 
@@ -333,6 +370,18 @@ if (-not $Uninstall -and -not $RemoteChoice) {
   Write-Host ''
 }
 
+# ---------- DesignerSkill ----------
+$DsHosts = @($Chosen | Where-Object { $DsSupported -contains $_.Id } | ForEach-Object { $_.Id })
+$DesignerChoice = if ($Designer) { 'yes' } elseif ($NoDesigner -or $Yes -or $DsHosts.Count -eq 0) { 'no' } else { '' }
+if (-not $Uninstall -and -not $DesignerChoice) {
+  Write-Host 'DesignerSkill ' -NoNewline; Say "($DsRepo) is a design skill made together with Variant Studio: it studies real" 'DarkGray'
+  Say 'products, fixes the design tokens, shows directions in Variant Studio, checks and documents the result' 'DarkGray'
+  Say "and translates it to your stack. It installs into the same agents ($($DsHosts -join ', '))." 'DarkGray'
+  $a = Read-Host 'Install DesignerSkill too? [y/N]'
+  $DesignerChoice = if ($a -match '^[yY]') { 'yes' } else { 'no' }
+  Write-Host ''
+}
+
 # ---------- source ----------
 $Here = if ($PSScriptRoot) { $PSScriptRoot } else { '' }
 $Tmp = $null
@@ -380,6 +429,7 @@ foreach ($a in $Chosen) {
 if (-not $Uninstall) {
   if ($RemoteChoice -eq 'yes') { Say $(if ($Cf) { "  Remote sharing: on (cloudflared at $Cf)" } else { '  Remote sharing: on, cloudflared will be installed' }) 'DarkGray' }
   elseif ($RemoteChoice -eq 'no') { Say '  Remote sharing: off' 'DarkGray' }
+  if ($DesignerChoice -eq 'yes') { Say "  DesignerSkill: $($DsHosts -join ', ') (global)" 'DarkGray' }
 }
 if (-not $Yes) {
   $a = Read-Host 'Proceed? [Y/n]'
@@ -426,7 +476,8 @@ try {
     Ok "$($a.Name): $dst$(if ($note) { " ($note)" })"; $done++
   }
 } finally {
-  if ($Tmp -and (Test-Path $Tmp)) { Remove-Item -LiteralPath $Tmp -Recurse -Force -ErrorAction SilentlyContinue }
+  # the download is still needed by DesignerSkill below
+  if ($DesignerChoice -ne 'yes' -and $Tmp -and (Test-Path $Tmp)) { Remove-Item -LiteralPath $Tmp -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 Write-Host ''
@@ -441,6 +492,13 @@ if (-not $Uninstall) {
     if ($Cf) { Write-UserConfig $true $Cf; Ok "Remote sharing on (cloudflared: $Cf)" }
     else { Write-UserConfig $true ''; Warn 'Could not install cloudflared. Install it yourself (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and remote sharing will work.' }
   } elseif ($RemoteChoice -eq 'no') { Write-UserConfig $false $Cf; Ok 'Remote sharing off (re-run with -Remote to turn it on)' }
+  if ($DesignerChoice -eq 'yes') {
+    Write-Host ''; Write-Host 'DesignerSkill'
+    if ($DsHosts.Count -eq 0) { Warn 'DesignerSkill supports none of the chosen agents - skipped' }
+    elseif (Install-Designer $DsHosts $Src) { Ok "DesignerSkill installed for $($DsHosts -join ', ') (update later: $DsDir\update.bat)" }
+    else { Warn "DesignerSkill was not installed. Get it from $DsRepo" }
+  }
+  if ($Tmp -and (Test-Path $Tmp)) { Remove-Item -LiteralPath $Tmp -Recurse -Force -ErrorAction SilentlyContinue }
   Write-Host ''
   Write-Host "Done. Installed for $done agent(s). Restart the agent, then ask for design variants"
   Write-Host '(e.g. "show me 3 versions of the pricing card") or invoke the skill by name: ' -NoNewline; Write-Host $Skill -ForegroundColor DarkYellow

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Variant Studio 3.0 — installer and updater for Linux and macOS.
+# Variant Studio 3.1 — installer and updater for Linux and macOS.
 #
 #   ./install.sh                         interactive: pick agents, remote sharing, scope and mode
 #   ./install.sh --agents claude,codex   non-interactive
@@ -7,10 +7,11 @@
 #   ./install.sh --all --yes             every supported agent, global scope
 #   ./install.sh --project . --agents copilot,cline
 #   ./install.sh --remote                also install cloudflared and enable remote sharing (--no-remote to turn it off)
+#   ./install.sh --designer              also install DesignerSkill in the same agents (--no-designer to skip the question)
 #   ./install.sh --link                  symlink instead of copy (updates with `git pull`)
 #   ./install.sh --uninstall --agents claude
 #   ./install.sh --list                  show agents and paths
-#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0…) instead of the latest
+#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0, 3.1…) instead of the latest
 #
 # Running it again updates an existing install: the old files are replaced, your config files are kept.
 #
@@ -24,6 +25,10 @@ SKILL=variant-studio
 REPO_TARBALL="https://codeload.github.com/Fonlogen/variant-studio/tar.gz/refs/heads/main"
 USER_DIR="$HOME/.variant-studio"
 CF_BASE="https://github.com/cloudflare/cloudflared/releases/latest/download"
+DS_REPO="https://github.com/Kekko16004/DesignerSkill"
+DS_DIR="$HOME/.designer/DesignerSkill"
+# Variant Studio agent id -> DesignerSkill host id (agents DesignerSkill does not support are left out)
+ds_host() { case "$1" in claude|codex|antigravity|kilo|cursor|opencode|copilot) printf '%s' "$1" ;; *) return 1 ;; esac; }
 
 # id | name | global dir (relative to $HOME) | project dir | detection paths (relative to $HOME, ':' separated) | commands
 # Claude Desktop has no skills folder: the installer builds a zip to upload in Settings > Capabilities.
@@ -49,10 +54,10 @@ say()  { printf '%s\n' "$*"; }
 ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
 warn() { printf '  %s!%s %s\n' "$O" "$N" "$*"; }
 die()  { printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2; exit 1; }
-usage() { sed -n '2,21p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,22p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0; }
 
 # ---------- args ----------
-SEL=""; ALL=0; DET=0; YES=0; SCOPE=""; PROJECT=""; MODE=""; ACTION=install; LIST=0; VERSION=""; REMOTE=""
+SEL=""; ALL=0; DET=0; YES=0; SCOPE=""; PROJECT=""; MODE=""; ACTION=install; LIST=0; VERSION=""; REMOTE=""; DESIGNER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --agents) SEL="${2:-}"; shift ;;
@@ -67,6 +72,8 @@ while [ $# -gt 0 ]; do
     --copy) MODE=copy ;;
     --remote) REMOTE=yes ;;
     --no-remote) REMOTE=no ;;
+    --designer) DESIGNER=yes ;;
+    --no-designer) DESIGNER=no ;;
     --uninstall) ACTION=uninstall ;;
     --list) LIST=1 ;;
     --version) VERSION="${2:-}"; shift ;;
@@ -119,7 +126,7 @@ if [ "$LIST" = 1 ]; then
 fi
 
 say ""
-say "${B}Variant Studio ${O}3.0${N}${B} installer${N}"
+say "${B}Variant Studio ${O}3.1${N}${B} installer${N}"
 say "${D}Installs or updates the '$SKILL' skill in your coding agents.${N}"
 say ""
 
@@ -208,6 +215,41 @@ if [ "$ACTION" = install ] && [ -z "$REMOTE" ]; then
     say ""
   fi
 fi
+
+# ---------- DesignerSkill ----------
+DS_HOSTS=""
+for i in "${CHOSEN[@]}"; do h="$(ds_host "$(field "${AGENTS[$i]}" 1)")" && DS_HOSTS="$DS_HOSTS${DS_HOSTS:+,}$h"; done
+if [ "$ACTION" = install ] && [ -z "$DESIGNER" ]; then
+  if ! interactive || [ -z "$DS_HOSTS" ]; then DESIGNER=no
+  else
+    say "${B}DesignerSkill${N} ${D}($DS_REPO) is a design skill made together with Variant Studio: it studies real${N}"
+    say "${D}products, fixes the design tokens, shows directions in Variant Studio, checks and documents the result${N}"
+    say "${D}and translates it to your stack. It installs into the same agents (${DS_HOSTS//,/, }).${N}"
+    printf '%s' "Install DesignerSkill too? [y/N]: "; a="$(ask)"
+    case "$a" in y|Y|yes) DESIGNER=yes ;; *) DESIGNER=no ;; esac
+    say ""
+  fi
+fi
+
+install_designer() {
+  command -v node >/dev/null 2>&1 || { warn "DesignerSkill needs Node.js 18+ — skipped"; return 1; }
+  [ -n "$DS_HOSTS" ] || { warn "DesignerSkill supports none of the chosen agents — skipped"; return 1; }
+  mkdir -p "$(dirname "$DS_DIR")"
+  if [ -d "$DS_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+    say "${D}Updating DesignerSkill…${N}"; git -C "$DS_DIR" pull -q --ff-only || warn "Could not update $DS_DIR; using it as is."
+  elif [ -f "$DS_DIR/designer/install.sh" ]; then :
+  elif command -v git >/dev/null 2>&1; then
+    say "${D}Downloading DesignerSkill from GitHub…${N}"; git clone -q --depth 1 "$DS_REPO" "$DS_DIR" || return 1
+  else
+    say "${D}Downloading DesignerSkill from GitHub…${N}"; mkdir -p "$DS_DIR"
+    curl -fsSL "https://codeload.github.com/Kekko16004/DesignerSkill/tar.gz/refs/heads/main" | tar -xz -C "$DS_DIR" --strip-components 1 || return 1
+  fi
+  [ -f "$DS_DIR/designer/install.sh" ] || return 1
+  # DesignerSkill installs Variant Studio into the same agents too: hand it this very version, from a stable folder
+  # (~/.variant-studio/app), so both installers agree and nothing is downloaded twice
+  rm -rf "$USER_DIR/app"; copy_skill "$SRC" "$USER_DIR/app"
+  bash "$DS_DIR/designer/install.sh" --hosts "$DS_HOSTS" --studio-path "$USER_DIR/app" --studio-mode copy </dev/null | sed 's/^/    /'
+}
 
 install_cloudflared() {
   local os arch url tmp
@@ -319,6 +361,7 @@ if [ "$ACTION" = install ]; then
     yes) if [ -n "$CF" ]; then say "  ${D}Remote sharing: on (cloudflared at $CF)${N}"; else say "  ${D}Remote sharing: on, cloudflared will be installed${N}"; fi ;;
     no) say "  ${D}Remote sharing: off${N}" ;;
   esac
+  [ "$DESIGNER" = yes ] && say "  ${D}DesignerSkill: ${DS_HOSTS//,/, } (global)${N}"
 fi
 if interactive; then
   printf '%s' "Proceed? [Y/n]: "; a="$(ask)"
@@ -377,6 +420,11 @@ if [ "$ACTION" = install ]; then
       else write_user_config true ""; warn "Could not install cloudflared. Install it yourself (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and remote sharing will work."; fi ;;
     no) write_user_config false "$CF"; ok "Remote sharing off ${D}(re-run with --remote to turn it on)${N}" ;;
   esac
+  if [ "$DESIGNER" = yes ]; then
+    say ""; say "${B}DesignerSkill${N}"
+    if install_designer; then ok "DesignerSkill installed for ${DS_HOSTS//,/, } ${D}(update later: $DS_DIR/update.sh)${N}"
+    else warn "DesignerSkill was not installed. Get it from $DS_REPO"; fi
+  fi
   say ""
   say "${B}Done.${N} Installed for $DONE agent(s). Restart the agent, then ask for design variants"
   say "(e.g. \"show me 3 versions of the pricing card\") or invoke the skill by name: ${O}$SKILL${N}."

@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — compare (swipe, overlay, A vs B tournament, before/after), overview grid, version tree.
+// Variant Studio 3.1 — compare (swipe, overlay, A vs B tournament, before/after), overview grid, version tree.
 'use strict';
 
 let cmpState = null;

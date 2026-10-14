@@ -1,4 +1,4 @@
-// Variant Studio 3.0 — Spanish UI strings (keys are the English text).
+// Variant Studio 3.1 — Spanish UI strings (keys are the English text).
 'use strict';
 I18N.es = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× se ve nítido en pantallas retina; 3× para impresión y diapositivas.',

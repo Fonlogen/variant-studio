@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Variant Studio 3.0 — zero-dependency design-variant previewer for coding agents.
+// Variant Studio 3.1 — zero-dependency design-variant previewer for coding agents.
 // Node >= 18. Works on macOS, Linux, Windows. No bash required.
 //
 //   node studio.mjs start    [--project DIR] [--port N] [--host H] [--url-host H] [--team] [--open] [--foreground] [--idle MIN]
@@ -19,7 +19,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '3.0';
+const VERSION = '3.1';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI = path.join(HERE, 'ui');
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
