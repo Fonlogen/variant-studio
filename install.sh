@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Variant Studio 3.1 — installer and updater for Linux and macOS.
+# Variant Studio 3.5 — installer and updater for Linux and macOS.
 #
 #   ./install.sh                         interactive: pick agents, remote sharing, scope and mode
 #   ./install.sh --agents claude,codex   non-interactive
@@ -11,7 +11,7 @@
 #   ./install.sh --link                  symlink instead of copy (updates with `git pull`)
 #   ./install.sh --uninstall --agents claude
 #   ./install.sh --list                  show agents and paths
-#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0, 3.1…) instead of the latest
+#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0, 3.1, 3.5…) instead of the latest
 #
 # Running it again updates an existing install: the old files are replaced, your config files are kept.
 #
@@ -126,7 +126,7 @@ if [ "$LIST" = 1 ]; then
 fi
 
 say ""
-say "${B}Variant Studio ${O}3.1${N}${B} installer${N}"
+say "${B}Variant Studio ${O}3.5${N}${B} installer${N}"
 say "${D}Installs or updates the '$SKILL' skill in your coding agents.${N}"
 say ""
 

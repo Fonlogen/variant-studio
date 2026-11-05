@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — UI strings. Keys are the English text; t() falls back to the key.
+// Variant Studio 3.5 — UI strings. Keys are the English text; t() falls back to the key.
 // S (core.js) loads after this file, so the language is read lazily.
 'use strict';
 
@@ -459,6 +459,20 @@ const IT = {
   'Cards show the whole variant': 'Le card mostrano tutta la variante',
   'Tall variants scroll inside their card': 'Le varianti lunghe scorrono dentro la card',
   'Scroll tall variants inside their card': 'Scorri le varianti lunghe dentro la card',
+  'Generation': 'Generazione',
+  'Variant mode': 'Modalità varianti',
+  'Mockup': 'Mockup',
+  'Prototype': 'Prototipo',
+  'Static designs only: no scripts or working logic. Saves tokens.': 'Solo design statici: niente script né logica funzionante. Risparmia token.',
+  'Interactive prototypes: the agent may write working code. Uses more tokens.': 'Prototipi interattivi: l\'agente può scrivere codice funzionante. Usa più token.',
+  'One subagent per variant': 'Un subagent per variante',
+  'one subagent per variant': 'un subagent per variante',
+  'Variants are written in parallel by subagents instead of one after another.': 'Le varianti vengono scritte in parallelo da subagent invece che una dopo l\'altra.',
+  'Claude Code subagent model': 'Modello subagent Claude Code',
+  'Codex subagent model': 'Modello subagent Codex',
+  'Automatic': 'Automatico',
+  'Saved: the agent applies it from the next round': 'Salvato: l\'agente lo applica dal prossimo round',
+  'Variant mode: {x}': 'Modalità varianti: {x}',
 };
 
 // Languages offered in Settings. Dictionaries for es/fr/ru live in js/lang/*.js and register into I18N.

@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — inspector, element popover, settings / team / help sheets, command palette.
+// Variant Studio 3.5 — inspector, element popover, settings / team / help sheets, command palette.
 'use strict';
 
 const FONTS = ['Inter', 'Instrument Sans', 'Figtree', 'Onest', 'Manrope', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Sora', 'Space Grotesk', 'Bricolage Grotesque', 'Work Sans', 'IBM Plex Sans', 'Geologica', 'Fraunces', 'Instrument Serif', 'Newsreader', 'Source Serif 4', 'Lora', 'Playfair Display', 'DM Serif Display', 'JetBrains Mono', 'Space Mono'];
@@ -217,6 +217,31 @@ const sw = (label, checked, on, hint) => {
   return h('label', { class: 'switch' }, h('span', {}, label, hint ? h('div', { class: 'hint' }, hint) : null), cb);
 };
 
+// generation settings live on the server (.variant-studio/settings.json): the agent reads them when it creates a round
+async function saveSettings(patch, reopen) {
+  const res = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => null);
+  if (!res?.ok) return toast(t('Error {n}', { n: res?.status || 0 }));
+  S.data.settings = (await res.json()).settings;
+  toast(t('Saved: the agent applies it from the next round'), 'good');
+  if (reopen) openSettings('gen');
+}
+
+function genSection() {
+  const gs = S.data.settings;
+  const modeSeg = h('div', { class: 'seg' }); seg(modeSeg, [['mockup', t('Mockup')], ['prototype', t('Prototype')]], gs.mode, (v) => saveSettings({ mode: v }, true));
+  const pick = (label, key, opts) => {
+    const sel = h('select', { class: 'tx', 'aria-label': label, disabled: gs.subagents ? null : true });
+    [['auto', t('Automatic')], ...opts].forEach(([v, l]) => sel.append(h('option', { value: v, selected: gs[key] === v }, l)));
+    sel.onchange = () => saveSettings({ [key]: sel.value });
+    return h('div', { class: 'switch' }, h('span', {}, label), sel);
+  };
+  return h('section', { id: 'genSec' }, h('h4', {}, t('Generation')),
+    h('div', { class: 'switch' }, h('span', {}, t('Variant mode'), h('div', { class: 'hint' }, gs.mode === 'mockup' ? t('Static designs only: no scripts or working logic. Saves tokens.') : t('Interactive prototypes: the agent may write working code. Uses more tokens.'))), modeSeg),
+    sw(t('One subagent per variant'), gs.subagents, (v) => saveSettings({ subagents: v }, true), t('Variants are written in parallel by subagents instead of one after another.')),
+    pick(t('Claude Code subagent model'), 'cc_subagent_model', [['haiku', 'Haiku'], ['sonnet', 'Sonnet'], ['opus', 'Opus'], ['fable', 'Fable']]),
+    pick(t('Codex subagent model'), 'cdx_subagent_model', [['luna', 'Luna'], ['terra', 'Terra'], ['sol', 'Sol'], ['astra', 'Astra']]));
+}
+
 function openSettings(focus) {
   openSheet(t('Settings'), (b) => {
     const langSeg = h('div', { class: 'flags', role: 'group', 'aria-label': t('Language') },
@@ -232,6 +257,7 @@ function openSettings(focus) {
       sw(t('Device frames on mobile and tablet'), S.device, (v) => { S.device = v; persist(); renderRound(true); }),
       sw(t('Sync scroll between previews'), S.sync, (v) => { S.sync = v; persist(); }),
       sw(t('Full height (no inner scroll)'), S.overflow, (v) => { S.overflow = v; persist(); layoutFrames(); }));
+    if (!TEAM && !STATIC && S.data.settings) b.append(genSection());
     b.append(h('h4', {}, t('Notifications')),
       sw(t('Notify me when new variants are ready'), S.notify, async (v) => {
         S.notify = v; persist();
@@ -279,7 +305,7 @@ function openSettings(focus) {
     if (!S.myChips.length) b.append(h('p', { class: 'hint' }, t('Write a note in the bar, open the prompt chips and choose “Save this note as a chip”.')));
     S.myChips.forEach((cp, i) => b.append(h('div', { class: 'switch' }, h('span', {}, cp), h('button', { class: 'ib sm', title: t('Remove'), 'aria-label': t('Remove'), html: I.x, onclick: () => { S.myChips.splice(i, 1); persist(); renderChips(); openSettings(); } }))));
     b.append(h('div', { class: 'addrow' }, h('button', { class: 'btn sm ghost', html: I.cmd + `<span>${t('Keyboard shortcuts')}</span>`, onclick: openHelp })));
-    if (focus === 'brand') setTimeout(() => $('#brandSec')?.scrollIntoView({ block: 'start' }), 30);
+    if (focus) setTimeout(() => $(`#${focus}Sec`)?.scrollIntoView({ block: 'start' }), 30);
   }, 'settings');
 }
 
@@ -413,6 +439,11 @@ function commands() {
   LANGS.filter(l => l.code !== S.lang).forEach(l => add(t('Studio'), t('Language: {x}', { x: l.name }), () => setLang(l.code)));
   add(t('Studio'), t('Rounds panel'), () => toggleDrawer(), 'R');
   add(t('Studio'), t('Settings'), () => openSettings());
+  if (!TEAM && !STATIC && S.data.settings) {
+    const gs = S.data.settings;
+    add(t('Studio'), t('Variant mode: {x}', { x: gs.mode === 'mockup' ? t('Prototype') : t('Mockup') }), () => saveSettings({ mode: gs.mode === 'mockup' ? 'prototype' : 'mockup' }));
+    add(t('Studio'), (gs.subagents ? t('Disable') : t('Enable')) + ' ' + t('one subagent per variant'), () => saveSettings({ subagents: !gs.subagents }));
+  }
   add(t('Studio'), t('Team'), () => openTeam());
   add(t('Studio'), t('Keyboard shortcuts'), openHelp, '?');
   add(t('Tools'), t('Comment on an element'), () => setMode(S.mode === 'pick' ? '' : 'pick'), 'C');

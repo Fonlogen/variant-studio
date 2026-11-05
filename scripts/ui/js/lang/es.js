@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — Spanish UI strings (keys are the English text).
+// Variant Studio 3.5 — Spanish UI strings (keys are the English text).
 'use strict';
 I18N.es = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× se ve nítido en pantallas retina; 3× para impresión y diapositivas.',
@@ -457,4 +457,18 @@ I18N.es = {
   'Cards show the whole variant': 'Las tarjetas muestran toda la variante',
   'Tall variants scroll inside their card': 'Las variantes largas se desplazan dentro de su tarjeta',
   'Scroll tall variants inside their card': 'Desplazar las variantes largas dentro de su tarjeta',
+  'Generation': 'Generación',
+  'Variant mode': 'Modo de las variantes',
+  'Mockup': 'Maqueta',
+  'Prototype': 'Prototipo',
+  'Static designs only: no scripts or working logic. Saves tokens.': 'Solo diseños estáticos: sin scripts ni lógica funcional. Ahorra tokens.',
+  'Interactive prototypes: the agent may write working code. Uses more tokens.': 'Prototipos interactivos: el agente puede escribir código funcional. Usa más tokens.',
+  'One subagent per variant': 'Un subagente por variante',
+  'one subagent per variant': 'un subagente por variante',
+  'Variants are written in parallel by subagents instead of one after another.': 'Las variantes las escriben subagentes en paralelo en lugar de una tras otra.',
+  'Claude Code subagent model': 'Modelo de subagente de Claude Code',
+  'Codex subagent model': 'Modelo de subagente de Codex',
+  'Automatic': 'Automático',
+  'Saved: the agent applies it from the next round': 'Guardado: el agente lo aplica desde la próxima ronda',
+  'Variant mode: {x}': 'Modo de las variantes: {x}',
 };

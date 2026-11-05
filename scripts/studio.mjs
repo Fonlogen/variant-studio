@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Variant Studio 3.1 — zero-dependency design-variant previewer for coding agents.
+// Variant Studio 3.5 — zero-dependency design-variant previewer for coding agents.
 // Node >= 18. Works on macOS, Linux, Windows. No bash required.
 //
 //   node studio.mjs start    [--project DIR] [--port N] [--host H] [--url-host H] [--team] [--open] [--foreground] [--idle MIN]
@@ -7,6 +7,7 @@
 //   node studio.mjs present  [--round ID] [--timeout SEC]     hand the round to the user, then wait for the decision
 //   node studio.mjs wait     [--round ID] [--timeout SEC]     wait for the next decision (exit 2 = still waiting, run again)
 //   node studio.mjs decision [--round ID]
+//   node studio.mjs settings [--mode mockup|prototype] [--subagents on|off] [--cc-subagent-model M] [--cdx-subagent-model M] [--global]
 //   node studio.mjs status | list | groups | inbox | open | stop | errors | build [--out FILE] [--team] | demo
 
 import http from 'node:http';
@@ -19,7 +20,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '3.1';
+const VERSION = '3.5';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI = path.join(HERE, 'ui');
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -51,6 +52,7 @@ const INFO = path.join(STATE, 'server.json');
 const AGENT = path.join(STATE, 'agent.json');
 const VOTES = path.join(STATE, 'votes.json');
 const BRAND = path.join(HOME, 'brand.json');
+const SETTINGS = path.join(HOME, 'settings.json');
 const EVENTS = path.join(STATE, 'events.jsonl');
 const ERRORS = path.join(STATE, 'errors.jsonl');
 
@@ -299,7 +301,7 @@ function snapshot() {
       }
     } catch {}
   }
-  for (const f of [path.join(HOME, 'global.css'), VOTES, BRAND]) if (fs.existsSync(f)) parts.push(f + ':' + fs.statSync(f).mtimeMs);
+  for (const f of [path.join(HOME, 'global.css'), VOTES, BRAND, SETTINGS]) if (fs.existsSync(f)) parts.push(f + ':' + fs.statSync(f).mtimeMs);
   const pend = pendingEntries().map((e) => e.d.id).join(',');
   parts.push('inbox:' + pend);
   return crypto.createHash('sha1').update(parts.join('|')).digest('hex');
@@ -341,6 +343,92 @@ function saveUserConfig(patch) {
   writeJSON(f, { ...readJSON(f, {}), ...patch });
 }
 const userConfig = () => ({ ...readJSON(path.join(HERE, '..', 'config.json'), {}), ...readJSON(path.join(USER_DIR, 'config.json'), {}) });
+// ---------- generation settings ----------
+// How the agent builds variants. Project file .variant-studio/settings.json, over user defaults (config.json "settings"), over these.
+const MODES = ['mockup', 'prototype'];
+const SUB_MODELS = {
+  cc: { haiku: 'Claude Haiku 5.5', sonnet: 'Claude Sonnet 5.5', opus: 'Claude Opus 5.5', fable: 'Claude Fable 5.1' },
+  cdx: { luna: 'GPT-6 Luna', terra: 'GPT Terra', sol: 'GPT-6.1 Sol', astra: 'GPT Astra' },
+};
+const SETTING_DEFAULTS = { mode: 'mockup', subagents: false, cc_subagent_model: 'auto', cdx_subagent_model: 'auto' };
+function cleanSettings(o = {}) {
+  const out = {};
+  if (MODES.includes(o.mode)) out.mode = o.mode;
+  if (typeof o.subagents === 'boolean') out.subagents = o.subagents;
+  for (const [k, list] of [['cc_subagent_model', SUB_MODELS.cc], ['cdx_subagent_model', SUB_MODELS.cdx]]) {
+    const v = String(o[k] ?? '').toLowerCase();
+    if (v === 'auto' || list[v]) out[k] = v;
+  }
+  return out;
+}
+const settings = () => ({ ...SETTING_DEFAULTS, ...cleanSettings(userConfig().settings), ...cleanSettings(readJSON(SETTINGS, {})) });
+// the harness running this command, so the brief names the right subagent model
+function harness() {
+  const a = String(args.agent || '').toLowerCase();
+  if (a === 'claude' || a === 'claude-code' || a === 'cc') return 'claude_code';
+  if (a === 'codex' || a === 'cdx') return 'codex';
+  if (process.env.CLAUDECODE) return 'claude_code';
+  if (Object.keys(process.env).some((k) => k.startsWith('CODEX_'))) return 'codex';
+  return 'other';
+}
+const MODE_RULES = {
+  mockup: 'MOCKUP MODE (default). Each variant is a static visual mockup, not a working app. Write exactly one HTML fragment per variant (<id>.html), plus an optional _shared.css. No JavaScript at all: no inline <script>, no on* attributes, no .js files, no state logic, routing, fetch, form handling, storage or data generators. No extra pages, components, package.json, build setup or folders. Buttons, links and inputs are inert visuals. Show other states with the round\'s `states`/`content` lists and CSS (html[data-vs-state="loading"] …), never with code. Spend the effort on visual quality, not behaviour. `present` refuses a round that breaks these rules. Only if the user explicitly asks for working prototypes, run `settings --mode prototype` first.',
+  prototype: 'PROTOTYPE MODE (the user turned it on). Variants may be interactive: inline scripts, working tabs, menus, forms with validation, fake data. Keep each variant one self-contained file in the round folder (shared helpers go in _*.js / _*.css). Do not scaffold a project, add dependencies or touch the app code.',
+};
+function modelBrief(s, h) {
+  const cc = s.cc_subagent_model, cdx = s.cdx_subagent_model;
+  const ccText = cc === 'auto'
+    ? 'Agent tool: choose the model per variant yourself (e.g. haiku for a small component, sonnet for a section, opus for a full page), or omit `model` to inherit yours.'
+    : `Agent tool with model: "${cc}" (${userConfig().models?.cc?.[cc] || SUB_MODELS.cc[cc]}, the newest of that family).`;
+  const cdxModel = userConfig().models?.cdx?.[cdx];
+  const cdxText = cdx === 'auto'
+    ? 'Choose the model per variant yourself (a lighter tier such as Luna for small components, Sol or Astra for full pages), or keep yours.'
+    : `Spawn every subagent on ${cdxModel ? `"${cdxModel}"` : `the newest GPT ${cdx[0].toUpperCase() + cdx.slice(1)} model available (${SUB_MODELS.cdx[cdx]} or later)`}.`;
+  if (h === 'claude_code') return { claude_code: ccText };
+  if (h === 'codex') return { codex: cdxText };
+  return { claude_code: ccText, codex: cdxText, other: 'Use your harness\'s subagent tool; pick the model yourself.' };
+}
+// what `new` (and `settings`) tell the agent about how to build the round
+function generationBrief(dir, ids) {
+  const s = settings();
+  const out = { mode: s.mode, mode_rules: MODE_RULES[s.mode] };
+  if (!s.subagents) { out.subagents = { enabled: false, rule: 'Write the variants yourself, one after another. Do not spawn subagents for them.' }; return out; }
+  const h = harness();
+  out.subagents = {
+    enabled: true,
+    harness: h,
+    model: modelBrief(s, h),
+    steps: [
+      'You orchestrate. First decide one distinct idea per variant, fill label and notes in round.json, and write _shared.css (tokens, fonts) if the variants share a look.',
+      'Spawn one subagent per variant, all in parallel (several spawn calls in the same turn). Each one owns exactly one file.',
+      'Brief each subagent with: its absolute file path, the round question, kind and viewports, the idea for its variant, the shared tokens/brand variables to use, the mode_rules text verbatim, and: "Write only this file. Do not create other files, do not run studio.mjs, do not present."',
+      'When every subagent is done, check the files exist, run `errors`, fix what broke, then run `present` yourself.',
+    ],
+    ...(dir && ids ? { assignments: ids.map((v) => ({ variant: v, file: path.join(dir, `${v}.html`) })) } : {}),
+  };
+  return out;
+}
+// mockup mode is enforced: logic, scripts and project scaffolding in a round are rejected before the user sees it
+function mockupViolations(roundId, r) {
+  const dir = path.join(ROUNDS, roundId);
+  const out = [];
+  const own = new Set(r.variants.map((v) => v.file).filter(Boolean));
+  for (const v of r.variants) {
+    if (!v.file) continue;
+    let src = ''; try { src = fs.readFileSync(path.join(dir, v.file), 'utf8'); } catch { continue; }
+    const inline = [...src.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter((m) => !/\bsrc\s*=/i.test(m[1]) && !/type\s*=\s*["']?(application\/(ld\+)?json|text\/template)/i.test(m[1]) && m[2].trim());
+    if (inline.length) out.push(`${v.id}: ${inline.length} inline <script> block${inline.length > 1 ? 's' : ''}`);
+    const handlers = [...new Set([...src.matchAll(/<[a-z][^>]*?\s(on[a-z]+)\s*=/gi)].map((m) => m[1].toLowerCase()))];
+    if (handlers.length) out.push(`${v.id}: event handler attributes (${handlers.slice(0, 5).join(', ')})`);
+    if (/\bjavascript:/i.test(src)) out.push(`${v.id}: javascript: URLs`);
+  }
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['round.json', 'decision.json'].includes(e.name) || own.has(e.name)) continue;
+    if (e.isDirectory() && !e.name.startsWith('_')) out.push(`folder ${e.name}/ (a mockup round holds only variant files)`);
+    else if (/\.(m?js|cjs|jsx|tsx?|vue|svelte)$/i.test(e.name) || /^(package(-lock)?\.json|vite\.config\..*|tsconfig\.json)$/i.test(e.name)) out.push(`file ${e.name} (no scripts or project files in mockup mode)`);
+  }
+  return out;
+}
 function findCloudflared() {
   const exe = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
   const cfg = userConfig().remote?.cloudflared;
@@ -404,13 +492,19 @@ async function serve() {
       if (p === '/api/state') {
         const st = stateFor();
         if (guest) { delete st.team_url; delete st.brand; return json(res, 200, { ...st, role: 'guest' }); }
-        return json(res, 200, { ...st, role: 'owner', team_url: teamUrl(), remote: remoteState(), lang: userConfig().lang || null });
+        return json(res, 200, { ...st, role: 'owner', team_url: teamUrl(), remote: remoteState(), lang: userConfig().lang || null, settings: settings() });
       }
       if (p === '/api/prefs' && req.method === 'POST') {
         const body = JSON.parse((await readBody(req)) || '{}');
         if (!LANG_NAMES[body.lang]) return json(res, 400, { error: 'unknown language' });
         saveUserConfig({ lang: body.lang });
         return json(res, 200, { ok: true, lang: body.lang });
+      }
+      if (p === '/api/settings' && req.method === 'POST') {
+        const body = cleanSettings(JSON.parse((await readBody(req)) || '{}'));
+        writeJSON(SETTINGS, { ...readJSON(SETTINGS, {}), ...body });
+        broadcast('change', { at: Date.now() });
+        return json(res, 200, { ok: true, settings: settings() });
       }
       if (p === '/api/remote' && req.method === 'POST') {
         const body = JSON.parse((await readBody(req)) || '{}');
@@ -773,6 +867,8 @@ async function present() {
   if (!r) { print({ type: 'error', message: 'no round to present: run `new` first' }); process.exit(1); }
   const missing = r.variants.filter((v) => !v.ready).map((v) => v.id);
   if (missing.length) { print({ type: 'error', message: `write these variants first: ${missing.map((m) => path.join(ROUNDS, id, m + '.html')).join(', ')}` }); process.exit(1); }
+  const violations = settings().mode === 'mockup' ? mockupViolations(id, r) : [];
+  if (violations.length) { print({ type: 'error', mode: 'mockup', violations, message: 'Mockup mode: variants must be static designs. Remove the scripts, handlers and project files listed in `violations` (express states with the round\'s `states` list and CSS), then run `present` again. Switch to prototype mode (`settings --mode prototype`) only if the user explicitly asked for working prototypes.' }); process.exit(1); }
   let info = readJSON(INFO);
   if (!(info && pidAlive(info.pid) && await health(info))) {
     const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'start', '--project', PROJECT], { stdio: 'ignore', windowsHide: true });
@@ -871,7 +967,7 @@ async function status() {
   print({
     running: alive, version: VERSION, url: alive ? info.url : null, ...(alive && info.team_url ? { team_url: info.team_url } : {}), ...(alive && info.remote_url ? { remote_url: info.remote_url } : {}), project: PROJECT, rounds_dir: ROUNDS,
     latest_round: r ? { id: r.id, title: r.title, variants: r.variants.map((v) => `${v.id}${v.ready ? '' : ' (missing)'}`), decision: r.decision ? { action: r.decision.action, selected: r.decision.selected, consumed: r.decision.consumed } : null } : null,
-    pending_decisions: pend.length, ...langNote(),
+    pending_decisions: pend.length, ...langNote(), settings: settings(),
     hint: alive ? (pend.length ? 'Decisions are waiting: run `wait` to receive them.' : undefined) : 'Run: node <skill>/scripts/studio.mjs start --project <dir> --open',
   });
 }
@@ -900,7 +996,7 @@ function newRound() {
   };
   writeJSON(path.join(dir, 'round.json'), manifest);
   setAgent('working', { round: id });
-  print({ type: 'round-created', id, dir, group: group || null, ...(() => { const w = []; if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".'); if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`); return w.length ? { warning: w.join(' ') } : {}; })(), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), then: 'Write every variant file, fill label/notes in round.json, then run `present`.' });
+  print({ type: 'round-created', id, dir, group: group || null, ...(() => { const w = []; if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".'); if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`); return w.length ? { warning: w.join(' ') } : {}; })(), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), generation: generationBrief(dir, ids), then: 'Follow `generation` (mode rules and subagents), write every variant file, fill label/notes in round.json, then run `present`.' });
 }
 
 function list() {
@@ -962,6 +1058,7 @@ function help() {
   status    server + latest round summary
   list      all rounds
   groups    existing groups/subgroups (reuse their names)
+  settings  show or change how variants are generated   --mode mockup|prototype --subagents on|off --cc-subagent-model auto|haiku|sonnet|opus|fable --cdx-subagent-model auto|luna|terra|sol|astra --global
   errors    JS errors reported by variant previews     --round ID
   open      open the gallery in the default browser
   build     write a self-contained gallery.html        --out FILE --round ID --team
@@ -969,6 +1066,24 @@ function help() {
   share     share the studio outside your network (Cloudflare tunnel, guests can view and vote)   --stop
   stop      stop the server
 `);
+}
+
+// show or change the generation settings (also editable in the gallery's Settings)
+function settingsCmd() {
+  const on = (v) => (v === true || /^(on|true|1|yes)$/i.test(String(v)) ? true : /^(off|false|0|no)$/i.test(String(v)) ? false : undefined);
+  const patch = cleanSettings({
+    mode: args.mode,
+    subagents: args.subagents === undefined ? undefined : on(args.subagents),
+    cc_subagent_model: args['cc-subagent-model'] ?? args.cc_subagent_model ?? args['cc-model'],
+    cdx_subagent_model: args['cdx-subagent-model'] ?? args.cdx_subagent_model ?? args['cdx-model'],
+  });
+  const asked = [['mode'], ['subagents'], ['cc-subagent-model', 'cc_subagent_model', 'cc-model'], ['cdx-subagent-model', 'cdx_subagent_model', 'cdx-model']].filter((ks) => ks.some((k) => args[k] !== undefined));
+  if (asked.length > Object.keys(patch).length) { print({ type: 'error', message: `invalid value. mode: ${MODES.join('|')}; subagents: on|off; cc model: auto|${Object.keys(SUB_MODELS.cc).join('|')}; codex model: auto|${Object.keys(SUB_MODELS.cdx).join('|')}` }); process.exit(1); }
+  if (Object.keys(patch).length) {
+    if (args.global) saveUserConfig({ settings: { ...cleanSettings(userConfig().settings), ...patch } });
+    else { ensureDirs(); writeJSON(SETTINGS, { ...readJSON(SETTINGS, {}), ...patch }); }
+  }
+  print({ type: 'settings', scope: args.global ? 'user' : 'project', ...(Object.keys(patch).length ? { changed: patch } : {}), settings: settings(), generation: generationBrief() });
 }
 
 // share the running studio outside the local network through a Cloudflare quick tunnel (--stop to close it)
@@ -988,6 +1103,7 @@ async function share() {
 const commands = {
   share, start, serve, stop, status, wait, present, decision, inbox, list, groups, build, demo, help,
   new: newRound,
+  settings: settingsCmd,
   errors: () => print(recentErrors(args.round)),
   open: () => { const i = readJSON(INFO); if (!i) return print({ type: 'not-running' }); openBrowser(i.url); print({ type: 'opened', url: i.url }); },
 };

@@ -1,5 +1,5 @@
 <#
-  Variant Studio 3.1 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
+  Variant Studio 3.5 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
 
     .\install.ps1                              interactive: pick agents, remote sharing, scope and mode
     .\install.ps1 -Agents claude,codex         non-interactive
@@ -11,7 +11,7 @@
     .\install.ps1 -Link                        junction instead of copy (updates with `git pull`)
     .\install.ps1 -Uninstall -Agents claude
     .\install.ps1 -List                        show agents and paths
-    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0, 3.1...) instead of the latest
+    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0, 3.1, 3.5...) instead of the latest
 
   Running it again updates an existing install: the old files are replaced, your config files are kept.
 
@@ -287,7 +287,7 @@ if ($List) {
 }
 
 Write-Host ''
-Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.1' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
+Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.5' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
 Say "Installs or updates the '$Skill' skill in your coding agents." 'DarkGray'
 Write-Host ''
 

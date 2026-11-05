@@ -76,6 +76,7 @@ Files that start with `_` are never treated as variants, so use them for shared 
 | Path | Content |
 |---|---|
 | `brand.json` | `{ "enabled": true, "colors": { "primary": "#3b5bdb" }, "fonts": { "heading": "Fraunces", "body": "Inter" } }` |
+| `settings.json` | `{ "mode": "mockup", "subagents": false, "cc_subagent_model": "auto", "cdx_subagent_model": "auto" }`. Written by Settings → Generation or the `settings` command. |
 | `exports/` | Components you write for `export` decisions. |
 | `state/inbox/` | The decision queue, one file per decision (`consumed: true` once you read it). |
 | `state/votes.json` | Team votes per round and variant. |

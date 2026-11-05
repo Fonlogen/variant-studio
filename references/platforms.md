@@ -14,6 +14,7 @@ Default mode works. Run the wait in the background so you are notified when the 
 until node <skill>/scripts/studio.mjs wait --project "$PWD" --timeout 580; [ $? -ne 2 ]; do :; done
 ```
 In the foreground, set the Bash tool `timeout` to 600000 and use `--timeout 580`; on exit 2 run it again straight away.
+With subagents enabled, spawn one Agent per variant in a single message; pass `model` from `generation.subagents.model` (`cc_subagent_model`), or omit it on `auto`.
 Install the skill in `~/.claude/skills/variant-studio/` (personal) or `.claude/skills/variant-studio/` (project).
 
 ## Codex (CLI / IDE)
@@ -23,6 +24,7 @@ Try the default `start` first and check with `status`. If the server is gone on 
 node <skill>/scripts/studio.mjs start --project "$PWD" --foreground
 ```
 launched as a background/long-running process of the harness. In sandboxed runs without network or port access, use `build` and ask the user to open `gallery.html`.
+Mockup mode is on by default and enforced by `present`: write static HTML designs, not working apps. With subagents enabled, spawn one Codex subagent per variant on the tier in `generation.subagents.model` (`cdx_subagent_model`). If the brief does not detect Codex, pass `--agent codex` to `new`.
 
 ## Gemini CLI
 ```bash
@@ -48,8 +50,13 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 ## User configuration
 `~/.variant-studio/config.json` (written by the installer) holds settings for every project:
 ```json
-{ "remote": { "enabled": true, "cloudflared": "/opt/homebrew/bin/cloudflared" } }
+{
+  "remote": { "enabled": true, "cloudflared": "/opt/homebrew/bin/cloudflared" },
+  "settings": { "mode": "mockup", "subagents": false, "cc_subagent_model": "auto", "cdx_subagent_model": "auto" },
+  "models": { "cdx": { "sol": "<exact model id>" } }
+}
 ```
+`settings` are the defaults (`settings --global`); `.variant-studio/settings.json` in a project (Settings → Generation, or `settings`) overrides them. `models` optionally pins exact model ids per tier.
 `remote.enabled: false` turns `share` off. `cloudflared` is optional: without it the studio looks in PATH, `~/.variant-studio/bin`, Homebrew and Program Files. A `config.json` inside the skill folder is read too and survives updates.
 
 ## Remote machines, containers, WSL

@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — French UI strings (keys are the English text).
+// Variant Studio 3.5 — French UI strings (keys are the English text).
 'use strict';
 I18N.fr = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× est net sur les écrans Retina ; 3× pour l\'impression et les présentations.',
@@ -457,4 +457,18 @@ I18N.fr = {
   'Cards show the whole variant': 'Les cartes montrent toute la variante',
   'Tall variants scroll inside their card': 'Les variantes longues défilent dans leur carte',
   'Scroll tall variants inside their card': 'Faire défiler les variantes longues dans leur carte',
+  'Generation': 'Génération',
+  'Variant mode': 'Mode des variantes',
+  'Mockup': 'Maquette',
+  'Prototype': 'Prototype',
+  'Static designs only: no scripts or working logic. Saves tokens.': 'Designs statiques uniquement : ni scripts ni logique fonctionnelle. Économise des tokens.',
+  'Interactive prototypes: the agent may write working code. Uses more tokens.': 'Prototypes interactifs : l\'agent peut écrire du code fonctionnel. Utilise plus de tokens.',
+  'One subagent per variant': 'Un sous-agent par variante',
+  'one subagent per variant': 'un sous-agent par variante',
+  'Variants are written in parallel by subagents instead of one after another.': 'Les variantes sont écrites en parallèle par des sous-agents au lieu de l\'une après l\'autre.',
+  'Claude Code subagent model': 'Modèle des sous-agents Claude Code',
+  'Codex subagent model': 'Modèle des sous-agents Codex',
+  'Automatic': 'Automatique',
+  'Saved: the agent applies it from the next round': 'Enregistré : l\'agent l\'applique dès la prochaine manche',
+  'Variant mode: {x}': 'Mode des variantes : {x}',
 };

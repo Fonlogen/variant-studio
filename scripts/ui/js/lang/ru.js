@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — Russian UI strings (keys are the English text).
+// Variant Studio 3.5 — Russian UI strings (keys are the English text).
 'use strict';
 I18N.ru = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× — чётко на экранах Retina; 3× — для печати и слайдов.',
@@ -457,4 +457,18 @@ I18N.ru = {
   'Cards show the whole variant': 'Карточки показывают вариант целиком',
   'Tall variants scroll inside their card': 'Длинные варианты прокручиваются внутри карточки',
   'Scroll tall variants inside their card': 'Прокручивать длинные варианты внутри карточки',
+  'Generation': 'Генерация',
+  'Variant mode': 'Режим вариантов',
+  'Mockup': 'Макет',
+  'Prototype': 'Прототип',
+  'Static designs only: no scripts or working logic. Saves tokens.': 'Только статичный дизайн: без скриптов и рабочей логики. Экономит токены.',
+  'Interactive prototypes: the agent may write working code. Uses more tokens.': 'Интерактивные прототипы: агент может писать рабочий код. Тратит больше токенов.',
+  'One subagent per variant': 'Один субагент на вариант',
+  'one subagent per variant': 'один субагент на вариант',
+  'Variants are written in parallel by subagents instead of one after another.': 'Варианты пишут субагенты параллельно, а не по очереди.',
+  'Claude Code subagent model': 'Модель субагентов Claude Code',
+  'Codex subagent model': 'Модель субагентов Codex',
+  'Automatic': 'Автоматически',
+  'Saved: the agent applies it from the next round': 'Сохранено: агент применит это со следующего раунда',
+  'Variant mode: {x}': 'Режим вариантов: {x}',
 };

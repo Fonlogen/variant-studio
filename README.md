@@ -83,6 +83,22 @@ curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/instal
 
 Every round is kept, grouped by product area and subject, with iterations nested under the round they came from.
 
+## What's new in 3.5
+
+- **Codex as a first-class agent**, next to Claude Code.
+- **Mockup mode, on by default.** Variants are static designs: one HTML file each, no scripts, no working logic, no project scaffolding. GPT models in particular tended to build every variant as a working app, which costs a lot of tokens for a visual decision. `present` now refuses a round that breaks the rule and tells the agent what to remove. Switch to **prototype mode** when you do want clickable, working variants.
+- **One subagent per variant (optional).** Instead of writing the variants one after another, the agent spawns a subagent for each and they work in parallel. The subagent model is chosen automatically, or pinned separately for each harness: `cc_subagent_model` (Haiku, Sonnet, Opus, Fable: always the newest of that family) and `cdx_subagent_model` (Luna, Terra, Sol, Astra: the newest GPT of that tier).
+- Both live in **Settings → Generation** in the gallery, in the command palette, and in the `settings` command. Ask the agent in plain words ("switch to prototype mode", "use subagents with Sonnet") and it runs it for you.
+
+| Command | Effect |
+|---|---|
+| `settings` | Show the current settings |
+| `settings --mode mockup` / `--mode prototype` | Static mockups (default) / working prototypes |
+| `settings --subagents on` / `off` | One subagent per variant / a single agent (default) |
+| `settings --cc-subagent-model auto\|haiku\|sonnet\|opus\|fable` | Subagent model in Claude Code |
+| `settings --cdx-subagent-model auto\|luna\|terra\|sol\|astra` | Subagent model in Codex |
+| `… --global` | Save as your default for every project instead of this one |
+
 ## What's new in 3.1
 
 - **Remote sharing.** A temporary public link through a Cloudflare tunnel, for teammates anywhere (Team panel, or `share`). Guests view, vote and comment; only you decide. The installer can set up cloudflared for you.
@@ -241,6 +257,7 @@ Everything lives in `.variant-studio/`, added to `.gitignore` automatically:
 .variant-studio/
   global.css              optional design-system tokens for every round
   brand.json              your brand palette and fonts (Settings)
+  settings.json           mockup/prototype mode, subagents and their models (Settings → Generation)
   rounds/001-product-card/
     round.json            group, question, kind, viewports, controls, labels and notes
     a.html b.html c.html

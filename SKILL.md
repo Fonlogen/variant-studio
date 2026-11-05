@@ -3,7 +3,7 @@ name: variant-studio
 description: Generate several design variants of any piece of UI — a single button, card, form, navbar, section, or full page — show them side by side in a live browser gallery, and let the user pick one, request changes, combine variants, or comment on specific elements, then continue from their structured decision. Use this whenever the user wants to explore, compare, or choose between design options or mockups ("show me a few versions", "give me some alternatives for this card", "fammi vedere delle varianti", "proposte di design", "quale layout è meglio", "redesign this component", "A/B options"), whenever a UI decision would be clearer seen than described, and whenever the user asks for a visual/browser companion or preview. Works in Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI and any agent that can run Node.js.
 ---
 
-# Variant Studio 3.1
+# Variant Studio 3.5
 
 A local gallery that turns "which design do you want?" into a visual decision. You write each variant as a small HTML file. The user sees them live in the browser, compares them (grid, full screen, list, swipe, overlay, A-vs-B tournament, overview of every round), tunes them (controls you declare, fonts, CSS tokens, brand palette, copy), comments on or locks single elements, and sends a decision. You read that decision as JSON and act on it.
 
@@ -32,7 +32,7 @@ If the user did not ask for a visual preview, offer it in one sentence the first
    ```
    For sections and pages always pass `--viewports` (see "Target viewport"). Iterations use `--parent <round id>` and inherit group, kind and viewports. Then fill `label` and `notes` for each variant in the printed `round.json`; add `knobs`, `states`, `content` or `checklist` when they help (`references/manifest.md`).
 
-3. **Write each variant** to `<round dir>/<id>.html` with your file-writing tool. The gallery shows a placeholder until the file exists and live-reloads on save.
+3. **Write each variant** to `<round dir>/<id>.html` with your file-writing tool, following the `generation` block that `new` printed (see "Generation settings"). The gallery shows a placeholder until the file exists and live-reloads on save.
 
 4. **Present and wait** (one command does both):
    ```bash
@@ -117,6 +117,19 @@ Fields:
 - `render_errors`: a variant threw JS errors while the user looked at it. Fix it and consider whether that biased the choice.
 - `wait` returns decisions from **any** round (the user may reopen an older one): always read `round` first.
 
+## Generation settings (mockup mode, subagents)
+
+`new` prints a `generation` block. Follow it every time; the user changes it in Settings → Generation, so read it again for each round.
+
+- **`mode: "mockup"` (default).** Every variant is a static visual mockup, not a working app. One HTML fragment per variant plus an optional `_shared.css`. No JavaScript (no inline `<script>`, no `on*` attributes, no `.js` files), no routing, fetch, form logic or fake data generators, no extra pages, components, `package.json` or folders. Buttons and inputs are inert. Show other states through `states` / `content` and CSS. `present` rejects a round that breaks this and lists the `violations`: remove them and present again. Putting the effort into the look instead of the behaviour is the point.
+- **`mode: "prototype"`.** Only when the user turned it on. Variants may be interactive (scripts, working tabs, validation, fake data), still one self-contained file each inside the round folder. Never scaffold a project or touch the app code for a variant.
+- **`subagents.enabled: false` (default).** Write the variants yourself, one after another.
+- **`subagents.enabled: true`.** You orchestrate: decide one idea per variant, fill `round.json`, write `_shared.css`, then spawn one subagent per variant **in parallel**, each owning the file in `assignments`. Brief each with its file path, the question, kind, viewports, its idea, the shared tokens and `mode_rules` verbatim, and tell it to write only that file and not run the studio. When all are done, run `errors` and then `present` yourself.
+  - Model: `subagents.model` says what to use. **Claude Code:** the Agent tool's `model` parameter (`haiku`, `sonnet`, `opus`, `fable`, which always resolve to the newest of that family); `auto` means you choose per variant. **Codex:** your subagent tool, on the newest GPT model of the chosen tier (`luna`, `terra`, `sol`, `astra`); `auto` means you choose. Exact model ids can be pinned in `~/.variant-studio/config.json` as `"models": { "cc": { "sonnet": "…" }, "cdx": { "sol": "…" } }`.
+  - If your harness has no subagent tool, write the variants yourself and say so in one line.
+
+When the user asks in chat to change these ("make them clickable", "prototype mode", "use subagents", "subagents on Sonnet", "go back to mockups"), run `settings` with the matching flag before creating the next round. Never switch to prototype mode on your own.
+
 ## Target viewport (read this before every section or page)
 
 `viewed_at` is only where the user happened to look. The design target is `design_target.viewports`, set from `--viewports` when you created the round. Design for the target. Never turn a desktop design into a mobile one (or the reverse) because the user glanced at another width, unless the note asks for it.
@@ -187,6 +200,7 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 | `present` | Check the latest round, print the URL, wait for the decision. |
 | `wait` | Wait for the next decision. Exit 2 = still waiting: run it again. |
 | `decision` / `inbox` | Next queued decision without waiting / the whole queue. |
+| `settings` | Show or change generation settings: `--mode mockup\|prototype`, `--subagents on\|off`, `--cc-subagent-model auto\|haiku\|sonnet\|opus\|fable`, `--cdx-subagent-model auto\|luna\|terra\|sol\|astra`; `--global` saves them as the user's default for every project. |
 | `status`, `list`, `groups` | Server state, round history, existing group names. |
 | `errors` | JS and asset errors raised by previews. Check after writing variants. |
 | `build [--team]` | Self-contained `gallery.html` that works without a server. Decisions are copied to the clipboard. `--team` makes a voting gallery to send to teammates; they return a votes file the user imports. |
@@ -199,7 +213,7 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - Select with `1–9`, rate, star into the shortlist, comment on or lock an element `C`, rewrite copy `E`, Inspector `I` (tune, fonts, tokens, checklist, accessibility audit, text edits).
 - Prompt bar: note `/`, quick chips and saved prompts, reference images (paste, drop, attach), dictation, `Ctrl/⌘ Enter` to send. Undo for 15 seconds after sending; revoke an approval later.
 - Each card's ⋯ menu: more like this, export as PNG, JPG, HTML with the user's changes or the original HTML, ask you for a React/Vue/Svelte/Tailwind component.
-- `Ctrl/⌘ K` command palette, Settings (language: English, Italian, Spanish, French, Russian; studio theme, notifications, what is sent to you, brand palette), Team panel.
+- `Ctrl/⌘ K` command palette, Settings (language: English, Italian, Spanish, French, Russian; studio theme; Generation: mockup or prototype mode, subagents and their models; notifications, what is sent to you, brand palette), Team panel.
 
 ## Troubleshooting
 
@@ -207,6 +221,7 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - **`share` fails** → `state: missing` means cloudflared is not installed, `disabled` means the user turned remote sharing off in `~/.variant-studio/config.json`. Tell them to re-run the installer with `--remote`; otherwise use `build --team`.
 - **"The studio server stopped"** → `STUDIO start` again; same port and key, the tab reconnects.
 - **Unreachable URL (remote, container)** → `start --host 0.0.0.0 --url-host <host>` or forward the port; otherwise `build`.
+- **`present` says "Mockup mode" with `violations`** → the variants contain scripts, event handlers or project files. Remove them; do not switch mode unless the user asked for working prototypes.
 - **Blank variant** → `STUDIO errors`; look for an unclosed tag or an asset path that should be `/p/…`.
 - **Wrong preview height in a full document** → avoid `height: 100vh` on `body` in component and section rounds.
 - **The user sees mobile layouts on desktop (or the reverse)** → the round has no `viewports` or the wrong ones. Set `"viewports"` in `round.json` to the real target.

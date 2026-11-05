@@ -1,4 +1,4 @@
-// Variant Studio 3.1 — rail, drawer, top bar and the main views.
+// Variant Studio 3.5 — rail, drawer, top bar and the main views.
 'use strict';
 
 // ---------------- rail + drawer ----------------
