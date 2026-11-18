@@ -152,6 +152,10 @@ function auditTab(body, c, it, f) {
   const names = { contrast: t('Low contrast'), target: t('Small touch target'), alt: t('Missing alt text'), label: t('Unlabelled field'), name: t('No accessible name'), overflow: t('Horizontal overflow') };
   for (const i of a) body.append(h('button', { class: 'issue', onclick: () => f && postTo(f, { type: 'flash', selector: i.selector }) }, h('span', { html: I.warn }),
     h('span', {}, h('b', {}, names[i.kind] || i.kind), ': ', i.detail, h('small', {}, i.text ? `“${i.text}”` : i.selector))));
+  const others = c.items.filter(x => S.audit[x.fk]?.length);
+  body.append(h('div', { class: 'addrow', style: 'margin-top:10px;flex-wrap:wrap;gap:6px' },
+    h('button', { class: 'btn sm', html: I.check + `<span>${t('Ask the agent to fix them')}</span>`, title: t('The agent edits this variant in place, without a new round'), disabled: TEAM, onclick: () => sendA11yFix(c, [it]) }),
+    others.length > 1 ? h('button', { class: 'btn ghost sm', title: t('The agent edits every variant with issues in place'), disabled: TEAM, onclick: () => sendA11yFix(c, others) }, t('Fix all variants ({n})', { n: others.length })) : ''));
   body.append(h('p', { class: 'hint' }, S.sendAudit ? t('These issues go with your decision so the agent fixes them.') : t('Audit issues are not sent to the agent (Settings).')));
 }
 

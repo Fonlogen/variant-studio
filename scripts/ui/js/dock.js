@@ -169,7 +169,7 @@ function renderSent() {
   if (!ls || STATIC || Date.now() - ls.t > 10 * 60e3) { el.className = ''; return; }
   const pend = (S.data.pending || []).find(p => p.id === ls.id);
   const held = pend && pend.hold_until && Date.parse(pend.hold_until) > Date.now();
-  const label = { choose: t('Approval'), revise: t('Change request'), remix: t('Combine request'), more: t('“More like this”'), regenerate: t('Start-over request'), export: t('Export request'), unapprove: t('Revoke') }[ls.action] || t('Decision');
+  const label = { choose: t('Approval'), revise: t('Change request'), remix: t('Combine request'), more: t('“More like this”'), regenerate: t('Start-over request'), export: t('Export request'), fix_a11y: t('Accessibility fix'), unapprove: t('Revoke') }[ls.action] || t('Decision');
   el.innerHTML = '';
   el.append(h('span', { class: 'spin' }),
     h('span', {}, held ? t('{x} sent: the agent receives it in {s}s', { x: label, s: Math.ceil((Date.parse(pend.hold_until) - Date.now()) / 1000) })
@@ -195,7 +195,7 @@ function variantPayload(it, c, d, action) {
     if (checks.length) o.checklist = { passed: checks.filter(([, v]) => v === true).map(([k]) => k), failed: checks.filter(([, v]) => v === false).map(([k]) => k) };
   }
   const a = S.audit[it.fk];
-  if (S.sendAudit && a && a.length && (d.selected.includes(it.key) || action === 'regenerate')) o.audit = a.slice(0, 15).map(i => ({ kind: i.kind, detail: i.detail, selector: i.selector, text: i.text }));
+  if (a && a.length && (action === 'fix_a11y' ? d.selected.includes(it.key) : S.sendAudit && (d.selected.includes(it.key) || action === 'regenerate'))) o.audit = a.slice(0, action === 'fix_a11y' ? 60 : 15).map(i => ({ kind: i.kind, detail: i.detail, selector: i.selector, text: i.text }));
   return Object.keys(o).length ? { label: it.v.label, ...(c.kind === 'shortlist' ? { round: it.r.id } : {}), ...o } : null;
 }
 function knobPayload(r) {
@@ -225,14 +225,14 @@ async function submit(action, extra = {}) {
   const d = draft(c.key);
   if (action === 'unapprove') return revokeApproval(c);
   const only = extra.only;
-  const selected = only ? [only.key] : d.selected.slice();
+  const selected = extra.keys || (only ? [only.key] : d.selected.slice());
   if ((action === 'choose' && selected.length !== 1) || (['revise', 'more'].includes(action) && !selected.length && c.kind !== 'approved') || (action === 'remix' && selected.length < 2)) {
     return toast(action === 'remix' ? t('Select at least two variants to combine') : t('Select a variant first'));
   }
   sending = true; renderDock();
   try {
     const variants = {};
-    for (const it of only ? [only] : c.items) { const o = variantPayload(it, c, { selected }, action); if (o) variants[it.key] = o; }
+    for (const it of extra.keys ? c.items.filter(x => extra.keys.includes(x.key)) : only ? [only] : c.items) { const o = variantPayload(it, c, { selected }, action); if (o) variants[it.key] = o; }
     const refs = (d.refs || []).filter(rf => rf.round === c.target.id).map(rf => rf.path);
     const r = c.r || c.target;
     const knobs = knobPayload(r);
@@ -276,7 +276,7 @@ async function submit(action, extra = {}) {
     const msg = {
       choose: t('Approved {x}. The agent receives it in {s}s', { x: name }),
       revise: t('Change request sent'), remix: t('Combine request sent'), more: t('“More like this” sent'),
-      regenerate: t('Start-over request sent'), export: t('Export request sent ({x})', { x: extra.framework || '' }),
+      regenerate: t('Start-over request sent'), fix_a11y: t('Accessibility fixes requested'), export: t('Export request sent ({x})', { x: extra.framework || '' }),
     }[action] || t('Sent to the agent');
     toast(msg, { kind: 'good', ms: action === 'choose' ? 15000 : 6000, countdown: action === 'choose', action: { label: t('Undo'), run: () => undoDecision(out.id) } });
     if (action === 'choose') { justApproved = c.items.find(x => x.key === selected[0])?.fk || null; setTimeout(() => { justApproved = null; }, 1700); }
@@ -291,6 +291,8 @@ async function submit(action, extra = {}) {
   finally { sending = false; renderDock(); }
 }
 function sendQuick(action, it, extra = {}) { return submit(action, { ...extra, only: it, no_hold: true }); }
+// accessibility fixes: the listed variants' audit issues go to the agent, which edits those files in place
+function sendA11yFix(c, items) { return items.length && submit('fix_a11y', { keys: items.map(x => x.key), no_hold: true }); }
 
 async function undoDecision(id) {
   try {

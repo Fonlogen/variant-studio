@@ -98,6 +98,7 @@ Actions:
 - **remix**: new round with `--parent` that blends the selected variants; per-variant comments say what to keep from each.
 - **more**: new round with `--parent` with 2–3 new variants that keep the selected idea and push it in different ways.
 - **regenerate**: the direction is wrong. Explore clearly different directions; do not tweak the rejected ones.
+- **fix_a11y**: the user pressed "Ask the agent to fix them" in the accessibility audit. Edit each `files[<id>]` in place (no new round, no redesign) and fix every issue in `variants.<id>.audit` with the smallest visual change; then run `errors` and wait again.
 - **unapprove**: the user revoked an approval (`revoked.variant`). Stop implementing it. If you already changed the codebase, tell the user what you changed and ask whether to revert. The round is open again: keep waiting.
 - **export**: the user wants `selected[0]` as a component in `framework` (React, Vue, Svelte, Tailwind HTML). Convert it following the project's conventions, write it to `.variant-studio/exports/`, and tell the user the path. Do not touch the app unless asked.
 
