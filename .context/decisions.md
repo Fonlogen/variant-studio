@@ -20,3 +20,6 @@
 2026-11-18 · Logo = 001/a "V divisa" (approved; 009 V+S not chosen). Open: logo accent lilac #8b9cff vs new orange UI accent
 2026-11-18 · Layout APPROVED = 011/a: dark default, accent #ff8a3d (dark ink on it), 007/c structure, prompt pill bottom-right with current dock actions, "Scrivi all agente" expands a panel upward; grid cards natural height; flat sidebar rows with left accent bar
 2026-11-18 · TUI shells add: plain (opaque black), Ubuntu default, CMD, PowerShell, Windows Terminal. Mode controls (shell/skin/frame/OS/size) must be grouped in ONE expandable control (grouped popover), not a row of selects
+2026-11-18 · Audit tab: "Chiedi all agente di risolverli" / "Risolvi in tutte le varianti" → decision action fix_a11y, agent edits files in place, no new round
+2026-11-18 · Logo accent = ORANGE (lilac copies removed)
+2026-11-18 · Full screen has 2 modes, per viewer (S.fsMode): screen = Fullscreen API (default), page = expands to page height keeping the studio chrome. Toggle in the focus card + command palette

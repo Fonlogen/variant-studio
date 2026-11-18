@@ -50,7 +50,7 @@ function paintBgButton() {
   $('#bgBtn').setAttribute('aria-label', t('Background behind the variants: {x}', { x: name }));
 }
 function setCanvas(v, color) {
-  S.canvas = v; if (color) S.canvasColor = color;
+  S.canvas = v; S.canvasPicked = true; if (color) S.canvasColor = color;
   persist(); applyStageCanvas(); paintBgButton(); broadcastFrames();
   if ($('#bgPop').matches(':popover-open')) renderBgPop();
 }

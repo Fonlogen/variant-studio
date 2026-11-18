@@ -127,7 +127,7 @@ const S = {
   data: { rounds: [], votes: {}, pending: [], agent: { state: 'unknown' } }, roundId: null, follow: true,
   layout: VIEWS.includes(saved.layout) ? saved.layout : 'grid', prevLayout: 'grid', focusFk: null,
   vps: saved.vps || {}, zoom: saved.zoom || 'fit', cardZoom: saved.cardZoom || {},
-  overflow: !!saved.overflow, theme: saved.theme || 'light', canvas: saved.canvas || 'light', sync: !!saved.sync, device: saved.device !== false, mode: '',
+  overflow: !!saved.overflow, theme: saved.theme || 'light', canvas: saved.canvasPicked && saved.canvas || 'gray', canvasPicked: !!saved.canvasPicked, sync: !!saved.sync, device: saved.device !== false, mode: '',
   cmp: { mode: saved.cmpMode || 'swipe', a: null, b: null, pos: 50, opacity: 50, diff: false },
   duel: {}, listSel: null, active: null,
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
@@ -141,7 +141,7 @@ const S = {
   railQ: '', audit: {}, tokens: {}, readySeen: null,
 };
 const persist = () => store.save({
-  layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, overflow: S.overflow, theme: S.theme, canvas: S.canvas, sync: S.sync, device: S.device,
+  layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, overflow: S.overflow, theme: S.theme, canvas: S.canvas, canvasPicked: S.canvasPicked, sync: S.sync, device: S.device,
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
   collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, fsMode: S.fsMode, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
   fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
