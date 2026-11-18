@@ -137,7 +137,7 @@ const S = {
   duel: {}, listSel: null, active: null,
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
   drawer: saved.drawer !== false && !phone(), ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
-  insp: !!saved.insp, inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
+  insp: !!saved.insp && !phone(), inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
   showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false, fsMode: saved.fsMode === 'page' ? 'page' : 'screen', bare: saved.bare !== false,
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
   fonts: saved.fonts || { heading: '', body: '' }, knobs: saved.knobs || {}, rstate: saved.rstate || {},

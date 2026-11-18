@@ -43,7 +43,7 @@ function setLang(code) {
   $('#drClose').onclick = () => toggleDrawer(false);
   $('#mTools').onclick = () => { const on = document.body.classList.toggle('m-tools'); $('#mTools').setAttribute('aria-expanded', String(on)); };
   document.body.addEventListener('click', (e) => { if (e.target === document.body && S.drawer && phone()) toggleDrawer(false); });
-  PHONE.addEventListener('change', () => { if (phone()) { S.drawer = false; renderRail(); } renderRound(true); });
+  PHONE.addEventListener('change', () => { if (phone()) { S.drawer = false; renderRail(); if (S.insp) toggleInsp(false); } renderRound(true); });
 })();
 
 // ---------------- keyboard ----------------
