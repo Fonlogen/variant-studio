@@ -676,6 +676,7 @@ body.insp-open #insp { display: flex; }
 /* frame only (design modes): no card chrome; the header floats in when the small button opens it */
 .card.bare, .card.bare:hover { background: none; box-shadow: none; }
 .card.bare .stage { background: none; }
+.grid > .card.bare .stage { align-items: flex-start; }
 .card.bare > .card-h { position: absolute; z-index: 6; top: 6px; left: 6px; right: 6px; background: var(--surf); border-radius: var(--r); box-shadow: var(--shadow), 0 0 0 1px var(--line-2); visibility: hidden; opacity: 0; translate: 0 -4px; transition: opacity .14s, translate .14s, visibility .14s; }
 .card.bare.open > .card-h { visibility: visible; opacity: 1; translate: none; transition: opacity .14s, translate .14s; }
 .card.bare > .card-h, .card.bare .card-a { flex-wrap: wrap; } .card.bare .card-a { justify-content: flex-end; }

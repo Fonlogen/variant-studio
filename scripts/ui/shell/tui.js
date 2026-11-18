@@ -34,7 +34,7 @@
   const svgBtn = (d) => `<i><svg viewBox="0 0 10 10">${d}</svg></i>`;
   const MIN = svgBtn('<path d="M1 5h8"/>'), MAX = svgBtn('<rect x="1.5" y="1.5" width="7" height="7" rx="1"/>'), CLOSE = svgBtn('<path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/>');
   const WB = `<span class="wb">${MIN}${MAX}${CLOSE}</span>`, CAP = `<span class="wb cap">${MIN}${MAX.replace(' rx="1"', '')}${CLOSE}</span>`;
-  const o = () => { const st = STYLES[S.opts.shell] ? S.opts.shell : 'acrylic'; return { st, font: 'jetbrains', size: 13, ...STYLES[st], ...Object.fromEntries(Object.entries(S.opts).filter(([, v]) => v != null && v !== '')) }; };
+  const o = () => { const st = STYLES[S.opts.shell] ? S.opts.shell : 'acrylic'; return { st, font: 'jetbrains', size: 13, cols: 100, ...STYLES[st], ...Object.fromEntries(Object.entries(S.opts).filter(([, v]) => v != null && v !== '')) }; };
   const family = (f) => (FONTS[f] ? `"${FONTS[f][0]}"` : WEB[f] ? WEB[f][2] || `"${WEB[f][0]}"` : String(f || '').startsWith('local:') ? `"${f.slice(6).replace(/"/g, '')}"` : '"JetBrainsMono Nerd"');
   // Nerd glyphs (private use area) resolve whatever the text font: this face only downloads when such a glyph shows up
   const GLYPHS = `@font-face{font-family:"VS Nerd Glyphs";src:url("${NF}${FONTS.jetbrains[1]}") format("truetype");unicode-range:U+E000-F8FF,U+F0000-FFFFD}`;
@@ -53,7 +53,7 @@
   const st = S.el('div', 'st'), win = S.el('div', 'win'), top = S.el('div', 'top'), tools = S.el('div', 'tools'), term = S.el('div', 'term'), bottom = S.el('div');
   const typed = S.el('div', 'typed'), prompt = S.el('div', 'prompt');
   term.append(S.makeInner('screen'), typed, prompt);
-  win.append(top, tools, term, bottom); st.append(win); S.root.append(st);
+  win.append(top, tools, term, bottom); const tfit = S.el('div', 'tfit'); tfit.append(win); st.append(tfit); S.root.append(st);
   const input = Object.assign(document.createElement('input'), { type: 'text', spellcheck: false, autocomplete: 'off' });
   input.setAttribute('aria-label', 'prompt');
   const hist = []; let hi = 0;
@@ -153,7 +153,18 @@
     fontStyle(document, x.font, x.size, x.ui);
     fontStyle(S.innerDoc(), x.font, x.size);
     if (S.innerH) S.inner.style.height = S.innerH + 'px';
+    term.style.width = `calc(${x.cols}ch + 24px)`;
+    fitWin();
   };
+  // the screen keeps its columns like a real terminal; a narrow card scales the whole window down instead of wrapping it
+  function fitWin() {
+    const w = win.offsetWidth, h = win.offsetHeight, pad = parseFloat(getComputedStyle(st).paddingLeft) || 0;
+    const s = Math.min(1, (st.clientWidth - 2 * pad) / w);
+    win.style.transform = s < 1 ? `scale(${s})` : '';
+    tfit.style.width = w * s + 'px'; tfit.style.height = h * s + 'px';
+  }
+  new ResizeObserver(fitWin).observe(win);
+  document.fonts?.addEventListener('loadingdone', fitWin);
   S.onInner = () => { const x = o(); fontStyle(S.innerDoc(), x.font, x.size); };
   S.render();
 })();

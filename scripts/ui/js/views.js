@@ -250,7 +250,9 @@ function buildGrid(c) {
   const grid = h('div', { class: 'grid' });
   const kinds = new Set(c.items.map(it => it.r.kind));
   const n = c.items.length;
-  const cols = kinds.has('component') && kinds.size === 1 ? Math.min(n, 4) : Math.min(n, 3);
+  // terminals and desktop windows keep their real width and scale down: two per row stay readable
+  const wide = c.items.some(it => ['tui', 'desktop'].includes(it.r.design));
+  const cols = wide ? Math.min(n, 2) : kinds.has('component') && kinds.size === 1 ? Math.min(n, 4) : Math.min(n, 3);
   grid.dataset.cols = Math.max(1, cols);
   c.items.forEach(it => grid.append(buildCard(c, it, { grid: true })));
   return grid;

@@ -6,7 +6,8 @@ body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -
   --fg: #e6e9f2; --dim: #9aa0b4; --line: rgba(255,255,255,.08); --acc: #c6a6ff; --acc2: #3a3f62; --ok: #8fdca6; --win: 22, 24, 38; }
 .st { position: relative; padding: 14px; overflow: hidden; background: var(--wall) center / cover no-repeat, #1b1d3a; }
 .st::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 120%, rgba(10,10,25,.45), transparent 60%); }
-.win { position: relative; z-index: 1; border-radius: 10px; color: var(--fg); background: rgba(var(--win), var(--op));
+.tfit { position: relative; z-index: 1; margin: 0 auto; }
+.win { position: relative; z-index: 1; width: max-content; transform-origin: 0 0; border-radius: 10px; color: var(--fg); background: rgba(var(--win), var(--op));
   -webkit-backdrop-filter: blur(var(--blur)) saturate(160%); backdrop-filter: blur(var(--blur)) saturate(160%);
   border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 22px 56px -14px rgba(5,6,20,.6); }
 
