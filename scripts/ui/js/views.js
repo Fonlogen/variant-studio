@@ -258,7 +258,7 @@ function buildGrid(c) {
 
 // ---------------- card sizes ----------------
 // Per card: drag the corner (width and height), the right edge (width) or the bottom edge (height). Width snaps to
-// the 12-column grid, height is the preview's own; both are remembered per round in this browser. Double-click resets.
+// free widths (a fraction of the row), height is the preview's own; both are remembered per round in this browser. Double-click resets.
 function setCardSize(fk, patch) {
   const i = fk.indexOf('/'); const rid = fk.slice(0, i), vid = fk.slice(i + 1);
   const all = (S.cardSizes[rid] ||= {});
@@ -269,7 +269,7 @@ function setCardSize(fk, patch) {
 }
 function setCardPreset(v) {
   S.cardPreset = v;
-  for (const r of vpRounds()) for (const vid of Object.keys(S.cardSizes[r.id] || {})) setCardSize(r.id + '/' + vid, { span: null });
+  for (const r of vpRounds()) for (const vid of Object.keys(S.cardSizes[r.id] || {})) setCardSize(r.id + '/' + vid, { span: null, wf: null });
   persist(); layoutFrames(); requestAnimationFrame(layoutFrames);
 }
 function resetCardSizes(r) { if (!r) return; delete S.cardSizes[r.id]; persist(); document.querySelectorAll('.card.sized').forEach(c => c.classList.remove('sized')); layoutFrames(); requestAnimationFrame(layoutFrames); }
@@ -282,15 +282,14 @@ function resizeHandles(card, fk) {
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
-      const grid = card.parentElement, gap = parseFloat(getComputedStyle(grid).columnGap) || 16;
-      const colW = (grid.clientWidth - 11 * gap) / 12;
+      const W = card.parentElement.clientWidth;
       const w0 = card.getBoundingClientRect().width, wrap = card.querySelector('.pv'), h0 = wrap ? wrap.getBoundingClientRect().height : 240;
       const x0 = e.clientX, y0 = e.clientY;
       card.classList.add('resizing');
       let raf = 0;
       const move = (ev) => {
         const p = {};
-        if (dir !== 's') p.span = Math.min(12, Math.max(2, Math.round((w0 + ev.clientX - x0 + gap) / (colW + gap))));
+        if (dir !== 's') { p.wf = Math.round(Math.min(1, Math.max(200 / W, (w0 + ev.clientX - x0) / W)) * 1000) / 1000; p.span = null; }
         if (dir !== 'e') p.h = Math.round(Math.max(100, Math.min(4000, h0 + ev.clientY - y0)));
         setCardSize(fk, p);
         cancelAnimationFrame(raf); raf = requestAnimationFrame(relayout);
@@ -298,11 +297,11 @@ function resizeHandles(card, fk) {
       const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); card.classList.remove('resizing'); persist(); requestAnimationFrame(layoutFrames); };
       el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
     });
-    el.addEventListener('dblclick', (e) => { e.stopPropagation(); setCardSize(fk, dir === 'e' ? { span: null } : dir === 's' ? { h: null } : { span: null, h: null }); persist(); relayout(); requestAnimationFrame(layoutFrames); });
+    el.addEventListener('dblclick', (e) => { e.stopPropagation(); setCardSize(fk, dir === 'e' ? { span: null, wf: null } : dir === 's' ? { h: null } : { span: null, wf: null, h: null }); persist(); relayout(); requestAnimationFrame(layoutFrames); });
     if (dir === 'c') el.addEventListener('keydown', (e) => {
       const cur = cardSize(fk) || {}, wrap = card.querySelector('.pv');
-      const span = cur.span || Number(getComputedStyle(card).getPropertyValue('--span')) || 4, hh = cur.h || (wrap ? wrap.getBoundingClientRect().height : 240);
-      const step = { ArrowLeft: { span: Math.max(2, span - 1) }, ArrowRight: { span: Math.min(12, span + 1) }, ArrowUp: { h: Math.max(100, hh - 40) }, ArrowDown: { h: hh + 40 } }[e.key];
+      const wf = cur.wf || card.getBoundingClientRect().width / card.parentElement.clientWidth, hh = cur.h || (wrap ? wrap.getBoundingClientRect().height : 240);
+      const step = { ArrowLeft: { wf: Math.max(.15, wf - .05), span: null }, ArrowRight: { wf: Math.min(1, wf + .05), span: null }, ArrowUp: { h: Math.max(100, hh - 40) }, ArrowDown: { h: hh + 40 } }[e.key];
       if (!step) return; e.preventDefault(); e.stopPropagation(); setCardSize(fk, step); persist(); relayout();
     });
     return el;

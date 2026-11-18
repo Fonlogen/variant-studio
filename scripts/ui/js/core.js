@@ -462,11 +462,15 @@ const PRESET_SPAN = { s: 3, m: 4, l: 6, xl: 12 };
 function applySpans() {
   for (const grid of document.querySelectorAll('#view .grid:not(.one)')) {
     const W = grid.clientWidth; if (!W) continue;
+    // free widths: a card's size is a fraction of the row (wf); unsized cards split the row by the preset
+    const gap = parseFloat(getComputedStyle(grid).columnGap) || 16;
     const base = PRESET_SPAN[S.cardPreset] || Math.round(12 / (Number(grid.dataset.cols) || 3));
     for (const card of grid.children) {
-      let span = cardSize(card.dataset.fk || '')?.span || base;
-      if (W < 640) span = 12; else if (W < 980) span = Math.max(span, 6);
-      card.style.setProperty('--span', Math.min(12, Math.max(2, span)));
+      const sz = cardSize(card.dataset.fk || '') || {};
+      const per = 12 / (sz.span || base);
+      let w = sz.wf ? sz.wf * W : (W - (per - 1) * gap) / per;
+      if (W < 640) w = W; else if (W < 980) w = Math.max(w, (W - gap) / 2);
+      card.style.setProperty('--cw', Math.round(Math.min(W, Math.max(200, w))) + 'px');
     }
   }
 }

@@ -164,9 +164,9 @@ body:not(.drawer-open) #drawer { border: 0; }
 
 /* ---------- grid + cards ---------- */
 /* 12 columns: each card spans a share of them (preset or resized by the user); cards keep their natural height */
-.grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: start; }
-.grid > .card { grid-column: span var(--span, 4); }
-.grid.one > .card { grid-column: 1 / -1; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.grid > .card { flex: 0 0 auto; width: var(--cw, calc((100% - 32px) / 3)); min-width: 0; }
+.grid.one > .card { width: 100%; }
 .card { background: var(--surf); border-radius: var(--r-lg); display: flex; flex-direction: column; min-width: 0; outline: 1.5px solid transparent; outline-offset: 0; transition: outline-color .12s, box-shadow .12s; box-shadow: 0 0 0 1px var(--line); position: relative; }
 .card:hover { box-shadow: 0 0 0 1px var(--line-2), 0 14px 34px rgba(0,0,0,.45); }
 :root[data-ui="light"] .card:hover { box-shadow: 0 0 0 1px var(--line-2), 0 12px 30px rgba(20,20,40,.1); }
