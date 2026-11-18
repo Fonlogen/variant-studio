@@ -595,4 +595,12 @@ I18N.ru = {
   'close': 'закрыть',
   'goes with your choice of {x}': 'к вашему выбору {x}',
   '{n} selected': 'Выбрано: {n}',
+  '{i} of {n}': '{i} из {n}',
+  'Changes': 'Изменить',
+  'Variants': 'Варианты',
+  'Listening': 'Слушает',
+  'Working': 'Работает',
+  'Not listening': 'Не слушает',
+  'Not connected': 'Не подключён',
+  'Offline': 'Офлайн',
 };

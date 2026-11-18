@@ -42,12 +42,14 @@ function applyStageCanvas() {
   else { st.removeProperty('--stage-img'); if (color) st.setProperty('--stage', color); else st.removeProperty('--stage'); }
 }
 function paintBgButton() {
-  const sw = $('#bgSw'); if (!sw) return;
   const { name, color } = canvasInfo();
-  sw.classList.toggle('ck', S.canvas === 'checker');
-  sw.style.setProperty('--sw', color || 'transparent');
-  $('#bgBtn').title = t('Background behind the variants: {x}', { x: name });
-  $('#bgBtn').setAttribute('aria-label', t('Background behind the variants: {x}', { x: name }));
+  for (const b of document.querySelectorAll('[popovertarget=bgPop]')) {
+    const sw = b.querySelector('.sw'); if (!sw) continue;
+    sw.classList.toggle('ck', S.canvas === 'checker');
+    sw.style.setProperty('--sw', color || 'transparent');
+    b.title = t('Background behind the variants: {x}', { x: name });
+    b.setAttribute('aria-label', t('Background behind the variants: {x}', { x: name }));
+  }
 }
 function setCanvas(v, color) {
   S.canvas = v; S.canvasPicked = true; if (color) S.canvasColor = color;
@@ -69,9 +71,12 @@ function renderBgPop() {
 }
 (() => {
   const pop = $('#bgPop');
+  // the top bar button, or the one floating on a phone card: the popover opens under the one pressed
+  let from = $('#bgBtn');
+  addEventListener('click', (e) => { const b = e.target.closest?.('[popovertarget=bgPop]'); if (b) from = b; }, true);
   pop.addEventListener('toggle', (e) => {
-    $('#bgBtn').setAttribute('aria-expanded', String(e.newState === 'open'));
-    if (e.newState === 'open') { renderBgPop(); placeAnchored(pop, $('#bgBtn')); }
+    from.setAttribute('aria-expanded', String(e.newState === 'open'));
+    if (e.newState === 'open') { renderBgPop(); placeAnchored(pop, from); }
   });
   $('#bgCustom').addEventListener('input', (e) => setCanvas('custom', e.target.value));
 })();

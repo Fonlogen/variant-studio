@@ -22,7 +22,7 @@ function setLang(code) {
 
 // ---------------- rail and top bar ----------------
 (() => {
-  for (const [id, ic] of [['#rRounds', 'rounds'], ['#rShort', 'star'], ['#rTree', 'tree'], ['#rOverview', 'overview'], ['#rMap', 'map'], ['#rTeam', 'team'], ['#rCmd', 'cmd'], ['#rSettings', 'gear'], ['#pickBtn', 'pick'], ['#editBtn', 'edit'], ['#inspBtn', 'sliders']]) icon($(id), ic);
+  for (const [id, ic] of [['#rRounds', 'rounds'], ['#rShort', 'star'], ['#rTree', 'tree'], ['#rOverview', 'overview'], ['#rMap', 'map'], ['#rTeam', 'team'], ['#rCmd', 'cmd'], ['#rSettings', 'gear'], ['#pickBtn', 'pick'], ['#editBtn', 'edit'], ['#inspBtn', 'sliders'], ['#mMenu', 'menu'], ['#mTools', 'more'], ['#drClose', 'x']]) icon($(id), ic);
   $('#rRounds').onclick = () => toggleDrawer();
   $('#rShort').onclick = () => selectRound(SHORT);
   $('#rTree').onclick = () => setLayout(S.layout === 'tree' ? (S.prevLayout || 'grid') : 'tree');
@@ -38,6 +38,12 @@ function setLang(code) {
   $('#inspBtn').onclick = () => toggleInsp();
   $('#inspClose').onclick = () => toggleInsp(false);
   $('#railQ').addEventListener('input', (e) => { S.railQ = e.target.value; renderRail(); });
+  // phones: the menu opens the rounds as a bottom sheet (with the rail under it); the other button unfolds the top bar tools
+  $('#mMenu').onclick = () => toggleDrawer();
+  $('#drClose').onclick = () => toggleDrawer(false);
+  $('#mTools').onclick = () => { const on = document.body.classList.toggle('m-tools'); $('#mTools').setAttribute('aria-expanded', String(on)); };
+  document.body.addEventListener('click', (e) => { if (e.target === document.body && S.drawer && phone()) toggleDrawer(false); });
+  PHONE.addEventListener('change', () => { if (phone()) { S.drawer = false; renderRail(); } renderRound(true); });
 })();
 
 // ---------------- keyboard ----------------
@@ -52,6 +58,7 @@ addEventListener('keydown', (e) => {
     if ($('#pop').classList.contains('show')) return closePop();
     if ($('#sheet').classList.contains('show') && !TEAM_NAME_REQUIRED()) return closeSheet();
     if (dockOpen) return setDockOpen(false);
+    if (S.drawer && phone()) return toggleDrawer(false);
     if (S.mode) return setMode('');
     if (S.layout === 'focus') return closeFocus();
     if (S.insp && innerWidth < 1100) return toggleInsp(false);

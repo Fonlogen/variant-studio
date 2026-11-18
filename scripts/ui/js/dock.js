@@ -106,7 +106,7 @@ function renderDock() {
   bC.disabled = !has('choose') || sending || null;
   const remix = d.selected.length >= 2 && has('remix');
   const revLabel = remix ? t('Combine') : c.kind === 'discarded' ? t('Bring back') : t('Request changes');
-  bR.innerHTML = (remix ? I.layers : I.send) + `<span>${revLabel}</span>`;
+  bR.innerHTML = (remix ? I.layers : I.send) + `<span>${revLabel}</span>` + (remix || c.kind === 'discarded' ? '' : `<span class="ln">${t('Changes')}</span>`);
   bR.title = remix ? t('Ask for a new round that blends the selected variants') : t('Ask for a new round based on the selected variant and your notes');
   bR.disabled = !(remix || has('revise')) || sending || null;
   bR.classList.toggle('pri', c.kind === 'approved' || c.kind === 'discarded');
@@ -122,14 +122,16 @@ function renderDock() {
   icon($('#bMic'), 'mic'); $('#bMic').title = rec ? t('Stop dictation') : t('Dictate a note');
   $('#bMic').style.display = SR ? '' : 'none';
   icon($('#bChips'), 'chips'); $('#bChips').title = t('Prompt chips'); $('#bChips').setAttribute('aria-pressed', String(S.chipsOpen));
-  dock.classList.toggle('chips', S.chipsOpen);
+  dock.classList.toggle('chips', S.chipsOpen || phone());
+  // the phone sheet repeats attach, dictate and approve in its footer
+  for (const [p, b] of [['#pAttach', '#bAttach'], ['#pMic', '#bMic'], ['#pChoose', '#bChoose']]) { const P = $(p), B = $(b); P.innerHTML = B.innerHTML; P.title = B.title; P.disabled = B.disabled; P.style.display = B.style.display; P.classList.toggle('rec', !!rec); }
   // panel footer: what Ctrl/⌘ Enter sends, and the change request button
   const pa = primaryAction(c, d);
   const keys = $('#pnlKeys'); keys.innerHTML = '';
   if (pa) keys.append(h('kbd', {}, navigator.platform?.startsWith('Mac') ? '⌘ Enter' : 'Ctrl Enter'), ' ' + pa.label + '  ');
   keys.append(h('kbd', {}, 'Esc'), ' ' + t('close'));
   const bS = $('#bSendNote');
-  bS.innerHTML = (remix ? I.layers : I.send) + `<span>${remix ? t('Send as combine request') : t('Send as change request')}</span>`;
+  bS.innerHTML = (remix ? I.layers : I.send) + `<span>${remix ? t('Send as combine request') : t('Send as change request')}</span><span class="ln">${remix ? t('Combine') : t('Changes')}</span>`;
   bS.disabled = bR.disabled;
   $('#refsLbl').textContent = t('References'); $('#chipsLbl').textContent = t('Chips');
   const ar = $('#bAddRef'); ar.innerHTML = I.image + `<span>${t('Add')}</span>`; ar.disabled = STATIC || null; ar.title = t('Attach reference images (or paste / drop them)');
@@ -146,8 +148,9 @@ function changeCount(c) {
 }
 function renderChips() {
   const el = $('#chips'); el.innerHTML = '';
-  el.classList.toggle('show', S.chipsOpen && !TEAM);
-  if (!S.chipsOpen) return;
+  const on = S.chipsOpen || phone();
+  el.classList.toggle('show', on && !TEAM);
+  if (!on) return;
   const note = $('#note');
   const addText = (txt) => { const d = draft(ctx()?.key); const cur = (d.note || '').trim(); d.note = cur ? `${cur}${/[.!?]$/.test(cur) ? '' : '.'} ${txt}` : txt; persist(); note.value = d.note; autoGrow(note); note.focus(); renderDock(); };
   for (const q of QUICK) el.append(h('button', { onclick: () => addText(t(q)) }, t(q)));
@@ -385,7 +388,11 @@ function toggleMic() {
       { label: t('Hide the prompt bar'), icon: 'hide', title: t('Press / to bring it back'), run: () => setPromptHidden(true) },
     ]);
   };
-  $('#bAttach').onclick = () => $('#fileIn').click();
+  $('#bAttach').onclick = $('#pAttach').onclick = () => $('#fileIn').click();
+  $('#pMic').onclick = toggleMic;
+  $('#pChoose').onclick = () => submit('choose');
+  // phones: the panel is a sheet; a tap on the dimmed screen around it closes it
+  $('#dock').addEventListener('click', (e) => { if (e.target === e.currentTarget && dockOpen && phone()) setDockOpen(false); });
   $('#fileIn').onchange = (e) => { setDockOpen(true, false); addRefs(e.target.files); e.target.value = ''; };
   $('#bMic').onclick = toggleMic;
   $('#bChips').onclick = () => { S.chipsOpen = !S.chipsOpen; persist(); if (S.chipsOpen) setDockOpen(true, false); renderDock(); };

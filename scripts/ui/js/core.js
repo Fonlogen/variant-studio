@@ -8,6 +8,7 @@ const TEAM = QS.get('team') === '1' || window.__VS_ROLE__ === 'guest' || !!(STAT
 // ---------------- icons ----------------
 const sv = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
 const I = {
+  menu: sv('<path d="M4 6h16M4 12h10M4 18h16"/>'),
   rounds: sv('<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>'),
   grid: sv('<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="16" rx="1.5"/><rect x="16" y="4" width="5" height="16" rx="1.5"/>'),
   focus: sv('<rect x="3" y="3" width="18" height="13" rx="2"/><rect x="4" y="18.5" width="4" height="2.5" rx="1"/><rect x="10" y="18.5" width="4" height="2.5" rx="1"/><rect x="16" y="18.5" width="4" height="2.5" rx="1"/>'),
@@ -117,6 +118,9 @@ const VP = { auto: null, mobile: [390, 844], tablet: [820, 1180], laptop: [1280,
 const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
 const VIEWS = ['grid', 'focus', 'list', 'compare', 'overview', 'tree', 'map'];
 const SPECIAL_VIEWS = ['tree', 'overview', 'map']; // views across rounds, without a dock or a single round
+// phones: the grid shows one variant at a time (swipe or tabs), the rounds drawer and the prompt become bottom sheets
+const PHONE = matchMedia('(max-width: 600px)');
+const phone = () => PHONE.matches;
 const store = {
   // one origin serves every project (sessions at /<PIN>/): key the saved state by project too
   key: 'vs3:' + (STATIC ? STATIC.project : location.host + (window.__VS_SID__ ? '/' + window.__VS_SID__ : '')),
@@ -132,7 +136,7 @@ const S = {
   cmp: { mode: saved.cmpMode || 'swipe', a: null, b: null, pos: 50, opacity: 50, diff: false },
   duel: {}, listSel: null, active: null,
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
-  drawer: saved.drawer !== false, ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
+  drawer: saved.drawer !== false && !phone(), ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
   insp: !!saved.insp, inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
   showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false, fsMode: saved.fsMode === 'page' ? 'page' : 'screen', bare: saved.bare !== false,
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
@@ -280,7 +284,8 @@ function renderAgent() {
   el.className = 'agent ' + st;
   el.title = tip;
   el.innerHTML = '';
-  el.append(h('i'), h('span', {}, label), pend ? h('b', {}, '· ' + t('{n} queued', { n: pend })) : null);
+  const short = { waiting: t('Listening'), working: t('Working'), away: t('Not listening'), unknown: t('Not connected'), static: t('Offline') }[st];
+  el.append(h('i'), h('span', {}, label), short ? h('span', { class: 'sh' }, short) : null, pend ? h('b', {}, '· ' + t('{n} queued', { n: pend })) : null);
 }
 
 // ---------------- viewport ----------------
@@ -442,14 +447,16 @@ function layoutFrame(f, availW) {
   const z = zoomOf(f);
   let s = z === 'fit' ? Math.min(1, cw / vpW) : Number(z);
   // full screen: the stage is sized by the window, so pages and sections fill all of it; resized cards have their own height
-  const sized = f.role === 'card' ? cardSize(f.it.fk)?.h : null;
-  const maxH = f.role === 'focus' ? Math.max(200, (holder?.clientHeight || innerHeight) - 2 * pad) : sized ? Math.max(80, sized - 2 * pad) : Infinity;
-  if (f.role === 'focus' && z === 'fit' && dev) s = Math.min(s, maxH / H);
+  // on a phone a grid card fills the screen like full screen does
+  const fill = f.role === 'focus' || (f.role === 'card' && phone() && !!f.wrap.closest('.grid'));
+  const sized = f.role === 'card' && !fill ? cardSize(f.it.fk)?.h : null;
+  const maxH = fill ? Math.max(f.role === 'focus' ? 200 : 120, (holder?.clientHeight || innerHeight) - 2 * pad) : sized ? Math.max(80, sized - 2 * pad) : Infinity;
+  if (fill && z === 'fit' && dev) s = Math.min(s, maxH / H);
   f.s = s;
-  if (f.role === 'focus' && !dev && r.kind !== 'component') H = maxH / s;
+  if (fill && !dev && r.kind !== 'component') H = maxH / s;
   else if (sized && fixedH && !dev) H = maxH / s;
   // a tall variant scrolls inside its card, so the grid stays one screen high; "Full height" lets cards grow instead
-  else if (f.role === 'card' && !fixedH && !S.overflow && !sized) H = Math.min(H, Math.max(320, $('#stage').clientHeight - 230) / s);
+  else if (f.role === 'card' && !fill && !fixedH && !S.overflow && !sized) H = Math.min(H, Math.max(320, $('#stage').clientHeight - 230) / s);
   const visW = vpW * s, visH = H * s;
   Object.assign(f.iframe.style, { width: vpW + 'px', height: H + 'px', transform: s === 1 ? '' : `scale(${s})`, left: '0', top: '0' });
   Object.assign(f.scaler.style, { width: visW + 'px', height: visH + 'px' });

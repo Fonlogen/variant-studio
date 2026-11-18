@@ -595,4 +595,12 @@ I18N.es = {
   'close': 'cerrar',
   'goes with your choice of {x}': 'acompaña tu elección de {x}',
   '{n} selected': '{n} seleccionadas',
+  '{i} of {n}': '{i} de {n}',
+  'Changes': 'Cambios',
+  'Variants': 'Variantes',
+  'Listening': 'Escuchando',
+  'Working': 'Trabajando',
+  'Not listening': 'Sin escuchar',
+  'Not connected': 'No conectado',
+  'Offline': 'Sin conexión',
 };

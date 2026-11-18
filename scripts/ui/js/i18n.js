@@ -597,6 +597,14 @@ const IT = {
   'close': 'chiudi',
   'goes with your choice of {x}': 'accompagna la tua scelta su {x}',
   '{n} selected': '{n} selezionate',
+  '{i} of {n}': '{i} di {n}',
+  'Changes': 'Modifiche',
+  'Variants': 'Varianti',
+  'Listening': 'In ascolto',
+  'Working': 'Al lavoro',
+  'Not listening': 'Non in ascolto',
+  'Not connected': 'Non collegato',
+  'Offline': 'Offline',
 };
 
 // Languages offered in Settings. Dictionaries for es/fr/ru live in js/lang/*.js and register into I18N.

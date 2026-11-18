@@ -2,7 +2,7 @@
 <html lang="en" data-ui="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Variant Studio</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3.6' fill='%231c1c22'/><path d='M11.2 3.2h2.6L10 12.8H7.4z' fill='%23ededf0' fill-opacity='.4'/><path d='M2.2 3.2h2.6l3.8 9.6H6z' fill='%23ff8a3d'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,13 +26,14 @@
 </nav>
 
 <aside id="drawer" aria-label="Rounds">
-  <div class="dr-h"><b data-i18n="Rounds"></b><small id="proj"></small></div>
+  <div class="dr-h"><b data-i18n="Rounds"></b><small id="proj"></small><button class="ib" id="drClose" data-i18n-title="Close"></button></div>
   <div class="dr-s"><input class="tx" id="railQ" type="search" data-i18n-title="Filter rounds…" data-i18n-ph="Filter rounds…" aria-label="Filter rounds"></div>
   <ul id="tree"></ul>
 </aside>
 
 <main id="main">
   <header id="top">
+    <button class="ib" id="mMenu" data-i18n-title="Rounds (R)" aria-controls="drawer"></button>
     <div class="ttl">
       <!-- #modeSlot: the round's design mode badge (ui | component | tui | app | desktop | logo) -->
       <div class="crumb"><span id="modeSlot"><span class="vs-mode-badge" id="modeBadge" hidden></span></span><span id="crumb"></span></div>
@@ -55,10 +56,14 @@
       <button class="ib" id="inspBtn"></button>
       <button class="pillbtn" id="qrBtn"></button>
       <span id="agent" class="agent" role="status"></span>
+      <button class="ib" id="mTools" data-i18n-title="Tools" aria-expanded="false"></button>
     </div>
   </header>
   <div id="banner"></div>
+  <!-- phones: variant tabs above the one card on screen, pager dots under it -->
+  <nav id="mTabs" role="tablist" data-i18n-title="Variants"></nav>
   <div id="stage"><button class="newpill" id="newpill"></button><div id="view"></div></div>
+  <div id="mDots" aria-hidden="true"></div>
 </main>
 
 <aside id="insp" data-tip-pos="left" aria-label="Inspector">
@@ -76,7 +81,7 @@
     <div class="refs-row"><div id="refs"></div><button class="addref" id="bAddRef"></button></div>
     <div class="pl" id="chipsLbl"></div>
     <div id="chips"></div>
-    <div class="pnl-f"><span id="pnlKeys"></span><span class="sp"></span><button class="btn sm ghost" id="bSendNote"></button></div>
+    <div class="pnl-f"><button class="ib mob" id="pAttach"></button><button class="ib mob" id="pMic"></button><span id="pnlKeys"></span><span class="sp"></span><button class="btn sm ghost" id="bSendNote"></button><button class="btn sm pri mob" id="pChoose"></button></div>
   </div>
   <div class="fab">
     <span id="chosen"></span>

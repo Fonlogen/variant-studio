@@ -115,7 +115,7 @@ function renderTopbar(c = ctx()) {
     mk(r.states || [], 'state', t('State')); mk(r.content || [], 'content', t('Content'));
     shellPickInto($('#modeTools'), r);
   }
-  icon($('#themeBtn'), S.theme === 'dark' ? 'moon' : 'sun'); $('#themeBtn').title = t('Variant theme: light / dark (D)');
+  for (const b of document.querySelectorAll('#themeBtn, .mvc [data-theme]')) { icon(b, S.theme === 'dark' ? 'moon' : 'sun'); b.title = t('Variant theme: light / dark (D)'); }
   $('#vcBox').style.display = special ? 'none' : '';
   paintBgButton();
   const qb = $('#qrBtn'); qb.style.display = TEAM || STATIC ? 'none' : ''; qb.innerHTML = I.qr + `<span>${t('Phone')}</span>`; qb.title = t('Open on your phone: QR code, PIN and link');
@@ -194,7 +194,7 @@ function renderRound(force = false) {
     const sig = [S.layout, S.ovScope, S.ovSize, S.mapSubj, S.mapSize, S.roundId, S.data.rounds.map(r => r.id + statusOf(r) + r.variants.map(v => v.ready ? v.mtime : 0).join('.')).join(',')].join('|');
     if (force || sig !== lastSig) { lastSig = sig; frames.clear(); view.innerHTML = ''; view.append(S.layout === 'tree' ? buildTree() : S.layout === 'map' ? buildMap() : buildOverview()); }
     $('#dock').style.display = 'none';
-    renderInspector();
+    renderMobileNav(null); renderInspector();
     requestAnimationFrame(layoutFrames);
     return;
   }
@@ -202,7 +202,7 @@ function renderRound(force = false) {
     view.innerHTML = ''; frames.clear(); lastSig = '';
     view.append(h('div', { class: 'empty' }, h('h2', {}, t('No rounds yet')), h('p', {}, t('When the agent creates design variants they appear here automatically.')), h('p', {}, h('code', {}, 'node scripts/studio.mjs demo'))));
     $('#dock').style.display = 'none';
-    renderInspector();
+    renderMobileNav(null); renderInspector();
     return;
   }
   $('#dock').style.display = '';
@@ -213,6 +213,7 @@ function renderRound(force = false) {
     frames.clear(); cmpState = null;
     view.innerHTML = '';
     view.append(...buildView(c));
+    paintBgButton();
   } else {
     for (const it of c.items) for (const f of framesOf(it.fk)) {
       if (it.v.mtime && it.v.mtime !== f.mtime) {
@@ -223,7 +224,8 @@ function renderRound(force = false) {
     updateCards();
   }
   if (!S.active || !c.items.some(it => it.fk === S.active)) S.active = c.items[0]?.fk || null;
-  renderDock(); renderInspector();
+  if (force && phone()) mShow(c);
+  renderMobileNav(c); renderDock(); renderInspector();
   requestAnimationFrame(layoutFrames);
 }
 
@@ -255,7 +257,45 @@ function buildGrid(c) {
   const cols = wide ? Math.min(n, 2) : kinds.has('component') && kinds.size === 1 ? Math.min(n, 4) : Math.min(n, 3);
   grid.dataset.cols = Math.max(1, cols);
   c.items.forEach(it => grid.append(buildCard(c, it, { grid: true })));
+  let raf = 0;
+  grid.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => mOnScroll(grid)); }, { passive: true });
   return grid;
+}
+
+// ---------------- phone: one variant at a time ----------------
+// The grid scrolls sideways with scroll snap; the tabs and the dots follow it. S.active is the card on screen.
+const mGrid = () => $('#view .grid:not(.one)');
+const mIndex = (c) => Math.max(0, c.items.findIndex(it => it.fk === S.active));
+function renderMobileNav(c = ctx()) {
+  const tabs = $('#mTabs'), dots = $('#mDots'); tabs.innerHTML = ''; dots.innerHTML = '';
+  if (!c || S.layout !== 'grid' || c.kind === 'approved' || c.items.length < 2) return;
+  const d = draft(c.key), cur = mIndex(c);
+  c.items.forEach((it, i) => {
+    const vd = vdata(it.fk);
+    tabs.append(h('button', { class: 'mtab' + (d.selected.includes(it.key) ? ' sel' : ''), role: 'tab', 'aria-selected': String(i === cur), title: labelOf(it), onclick: () => mGo(i) },
+      h('span', { class: 'l' }, letterOf(c, it)),
+      vd.rating ? h('span', { class: vd.rating > 0 ? 'ok' : 'no', html: vd.rating > 0 ? I.up : I.down }) : null,
+      S.stars.includes(it.fk) ? h('span', { class: 'st', html: I.star }) : null));
+    dots.append(h('i', { class: i === cur ? 'on' : null }));
+  });
+}
+function mGo(i) { const g = mGrid(); if (g) g.scrollTo({ left: i * g.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+function mOnScroll(g) {
+  const c = ctx(); if (!c || !phone() || !g.clientWidth) return;
+  const it = c.items[Math.round(g.scrollLeft / g.clientWidth)];
+  if (it && it.fk !== S.active) mSetActive(c, it);
+}
+function mSetActive(c, it) {
+  S.active = it.fk;
+  // the selection follows the variant on screen, unless several are picked to combine
+  const d = draft(c.key);
+  if (!TEAM && ['open', 'shortlist'].includes(c.kind) && d.selected.length <= 1 && d.selected[0] !== it.key) { d.selected = [it.key]; persist(); updateCards(); renderDock(); }
+  renderMobileNav(c); if (S.insp) renderInspector();
+}
+// after a rebuild: back to the card that was on screen
+function mShow(c) {
+  const it = c.items[mIndex(c)]; if (it) mSetActive(c, it);
+  requestAnimationFrame(() => { const g = mGrid(); if (g) g.scrollLeft = mIndex(c) * g.clientWidth; });
 }
 
 // ---------------- card sizes ----------------
@@ -328,6 +368,8 @@ function leaveFullscreen() {
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.layout === 'focus') closeFocus(); else requestAnimationFrame(layoutFrames); });
 function openFocus(fk) {
   if (!fk) return;
+  // a phone already shows one variant at a time
+  if (phone()) { S.active = fk; if (S.layout !== 'grid') { S.layout = 'grid'; persist(); renderRail(); } return renderRound(true); }
   if (S.layout !== 'focus') { S.prevLayout = [...SPECIAL_VIEWS, 'focus'].includes(S.layout) ? 'grid' : S.layout; S.scrollBack = $('#stage').scrollTop; }
   S.layout = 'focus'; S.focusFk = fk; S.active = fk;
   enterFullscreen();
@@ -371,7 +413,7 @@ function buildApproved(c) {
     status, h('span', { class: 'sp' }),
     TEAM ? null : revoke,
     others > 0 ? h('button', { class: 'btn sm ghost', title: t('See the other variants of this round to reuse them'), html: I.eye + `<span>${t('Show discarded ({n})', { n: others })}</span>`, onclick: () => { S.showDiscarded[c.r.id] = true; renderRound(true); } }) : null);
-  const g = h('div', { class: 'grid one' }); g.append(buildCard(c, it));
+  const g = h('div', { class: 'grid one' }); g.append(buildCard(c, it, { one: true }));
   return [bar, g];
 }
 
@@ -404,7 +446,7 @@ function buildCard(c, it, opts = {}) {
     ib('up', t('Vote up'), () => teamVote(it, 'up'), { 'data-tv': 'up' }),
     ib('down', t('Vote down'), () => teamVote(it, 'down'), { 'data-tv': 'down' }),
     ib('comment', t('Comment'), () => { S.cmOpen[fk] = !S.cmOpen[fk]; updateCards(); }, { 'data-cm': '' }),
-    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk))]),
+    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk), { 'data-fs': '' })]),
   ] : [
     ib('up', t('Like'), () => rate(fk, 1), { 'data-rate': 'up', hov: true }),
     ib('down', t('Dislike'), () => rate(fk, -1), { 'data-rate': 'down', hov: true }),
@@ -412,7 +454,7 @@ function buildCard(c, it, opts = {}) {
     ib('comment', t('Note on this variant'), () => { S.cmOpen[fk] = !S.cmOpen[fk]; updateCards(); if (S.cmOpen[fk]) setTimeout(() => card.querySelector('textarea.cm')?.focus()); }, { 'data-cm': '' }),
     STATIC ? null : ib('qr', t('Open this variant on your phone'), (e) => openQr(e.currentTarget, it), { hov: true }),
     ib('star', t('Add to shortlist'), () => toggleStar(fk), { 'data-star': '' }),
-    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk))]),
+    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk), { 'data-fs': '' })]),
     ib('more', t('More'), (e) => cardMenu(e.currentTarget, c, it)),
   ];
   const sub = c.kind === 'shortlist' ? `${rnum(it.r.id)} ${it.r.title}` : '';
@@ -423,6 +465,7 @@ function buildCard(c, it, opts = {}) {
   card.append(h('div', { class: 'card-h', onclick: (e) => { if (!e.target.closest('button,a,select,.badge')) toggleSel(key, fk); } },
     h('button', { class: 'letter', title: TEAM ? '' : t('Select ({n})', { n: c.items.indexOf(it) + 1 }), onclick: () => toggleSel(key, fk) }, letterOf(c, it)),
     h('div', { class: 'card-t' }, h('b', {}, labelOf(it)), sub ? h('small', {}, sub) : null),
+    opts.grid ? h('small', { class: 'pos' }, t('{i} of {n}', { i: c.items.indexOf(it) + 1, n: c.items.length })) : null,
     h('button', { class: 'badge votes', 'data-votes': fk, onclick: (e) => votesMenu(e.currentTarget, it) }),
     h('button', { class: 'badge err', 'data-err': fk, onclick: () => toast(framesOf(fk).flatMap(f => f.errors).slice(-3).join(' · ')) }),
     h('button', { class: 'badge aud', 'data-aud': fk, onclick: () => { S.active = fk; S.inspTab = 'audit'; toggleInsp(true); } }),
@@ -433,6 +476,10 @@ function buildCard(c, it, opts = {}) {
   const stage = h('div', { class: 'stage' });
   if (!v.ready || (STATIC && !v.html && !v.url)) stage.append(h('div', { class: 'skeleton' }, t('The agent is writing this variant…')));
   else { const f = makeFrame(it, { role: opts.focus ? 'focus' : 'card' }); stage.append(f.wrap, zoomControl(f)); }
+  // phones: variant theme and background float on the preview (the top bar has no room)
+  if (opts.grid || opts.one) stage.append(h('div', { class: 'mvc' },
+    h('button', { class: 'ib', 'data-theme': '', html: I[S.theme === 'dark' ? 'moon' : 'sun'], title: t('Variant theme: light / dark (D)'), onclick: () => setTheme(S.theme === 'light' ? 'dark' : 'light') }),
+    h('button', { class: 'ib', popovertarget: 'bgPop', html: '<span class="sw"></span>' })));
   card.append(stage);
   if (bareOn(it.r) && !opts.focus) {
     card.classList.add('bare');
@@ -548,6 +595,7 @@ function updateCards() {
     document.querySelectorAll('.film .th').forEach((b, i) => b.classList.toggle('sel', !!c.items[i] && draft(c.key).selected.includes(c.items[i].key)));
   }
   document.querySelectorAll('[data-votes]').forEach(b => paintVotes(b));
+  renderMobileNav(c);
 }
 function updateBadges(fk) {
   const errs = framesOf(fk).reduce((n, f) => n + f.errors.length, 0);

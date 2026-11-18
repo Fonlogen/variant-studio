@@ -595,4 +595,12 @@ I18N.fr = {
   'close': 'fermer',
   'goes with your choice of {x}': 'accompagne votre choix de {x}',
   '{n} selected': '{n} sélectionnées',
+  '{i} of {n}': '{i} sur {n}',
+  'Changes': 'Modifier',
+  'Variants': 'Variantes',
+  'Listening': 'À l\'écoute',
+  'Working': 'Au travail',
+  'Not listening': 'Pas à l\'écoute',
+  'Not connected': 'Non connecté',
+  'Offline': 'Hors ligne',
 };

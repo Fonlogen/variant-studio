@@ -613,7 +613,160 @@ body.insp-open #insp { display: flex; }
 @media (max-width: 600px) {
   body { --rail-w: 0px; }
   #rail { display: none; }
-  .agent span { display: none; }
+  .agent span:not(.sh), .agent b { display: none; }
+}
+
+/* ---------- phone (round 012/a "one at a time"): one variant on screen, swipe or tabs; rounds and prompt are bottom sheets ---------- */
+#mMenu, #mTools, #mTabs, #mDots, #drClose, .mvc, .card-h .pos, .pnl-f .mob, .agent .sh, #bRevise .ln, #bSendNote .ln { display: none; }
+@media (max-width: 600px) {
+  body, body.fs { height: 100dvh; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  #main { grid-column: 1; grid-row: 1; }
+  input.tx, select.tx, textarea.tx, textarea.cm, #note, .pal-box input { font-size: 16px; } /* under 16px iOS zooms in on focus */
+  /* header: menu, title, agent; the rest of the top bar unfolds under it */
+  #top { flex-wrap: wrap; gap: 4px 6px; padding: calc(6px + env(safe-area-inset-top)) 6px 4px 4px; }
+  #mMenu, #mTools { display: inline-grid; width: 44px; height: 44px; }
+  #mMenu svg, #mTools svg { width: 20px; height: 20px; }
+  #mTools[aria-expanded="true"] { background: var(--surf-2); color: var(--ink); }
+  .ttl { flex: 1 1 0; }
+  .crumb { font-size: 12.5px; }
+  #q { font-size: 17px; margin-top: 1px; }
+  .tools { display: contents; }
+  .tools > *, #stateBox > *, #modeTools > * { order: 2; }
+  .tools > #agent, .tools > #mTools { order: 0; }
+  body:not(.m-tools) .tools > :not(#agent, #mTools) { display: none; }
+  body.m-tools #top::after { content: ""; order: 1; flex-basis: 100%; }
+  body.m-tools .tools > .vsep { display: none; }
+  .agent { height: 32px; border-radius: 16px; padding: 0 10px; font-size: 13px; font-weight: 500; }
+  .agent .sh { display: inline; }
+  #banner { margin: 0 12px 6px; }
+  /* variant tabs and pager dots */
+  #mTabs:not(:empty) { display: flex; gap: 4px; margin: 4px 12px 0; padding: 3px; border-radius: var(--r-lg); background: var(--surf); box-shadow: inset 0 0 0 1px var(--line); flex: none; overflow-x: auto; scrollbar-width: none; }
+  .mtab { flex: 1 0 56px; height: 44px; border: 0; border-radius: var(--r); background: none; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 6px; color: var(--ink-2); }
+  .mtab[aria-selected="true"] { background: var(--surf-3); color: var(--ink); }
+  .mtab > span { display: grid; }
+  .mtab .l { min-width: 24px; height: 24px; padding: 0 5px; border-radius: var(--r-xs); background: var(--surf-3); place-items: center; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .mtab[aria-selected="true"] .l { background: var(--line-2); }
+  .mtab.sel .l { background: var(--acc); color: var(--acc-ink); }
+  .mtab svg { width: 14px; height: 14px; }
+  .mtab .ok { color: var(--good); } .mtab .no { color: var(--bad); } .mtab .st { color: var(--acc-fg); } .mtab .st svg { fill: currentColor; }
+  #mDots:not(:empty) { display: flex; justify-content: center; gap: 7px; padding: 8px 0 2px; flex: none; }
+  #mDots i { width: 7px; height: 7px; border-radius: 4px; background: var(--line-2); transition: width .2s; }
+  #mDots i.on { width: 20px; background: var(--acc); }
+  /* the grid becomes a row of full-size cards that snap */
+  #stage { padding: 4px 12px 16px; }
+  #stage:has(> #view > .grid) { overflow: hidden; padding: 8px 0 0; display: flex; flex-direction: column; }
+  #view:has(> .grid) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #view > .banner-ok, #view > .strip { margin: 0 12px 10px; flex: none; }
+  #view > .grid { flex: 1; min-height: 0; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px 0; }
+  #view > .grid::-webkit-scrollbar { display: none; }
+  #view > .grid > .card { flex: none; width: calc(100% - 24px); margin: 0 12px; align-self: stretch; min-height: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+  #view > .grid > .card .stage { min-height: 0; }
+  #view > .grid > .card > .card-h { min-height: 52px; padding: 4px 4px 4px 12px; gap: 4px; }
+  #view > .grid .letter { display: none; }
+  #view > .grid .card-t b { font-size: 16px; font-weight: 600; }
+  #view > .grid .card-h .pos { display: block; flex: none; color: var(--ink-3); font-size: 13px; white-space: nowrap; margin-right: 2px; }
+  #view > .grid .card-a .ib { width: 40px; height: 40px; color: var(--ink-2); }
+  #view > .grid .card-a .ib svg { width: 20px; height: 20px; }
+  #view > .grid .card-a .hov[data-rate] { display: inline-grid; }
+  #view > .grid .card-a :is(.hov:not([data-rate]), [data-cm], [data-fs]) { display: none; }
+  #view > .grid .card-a .ib.on-up { background: var(--good-soft); color: var(--good); }
+  #view > .grid .card-a .ib.on-down { color: var(--bad); }
+  #view > .grid .card-a .ib.on-star { color: var(--acc-fg); }
+  #view > .grid .card-f { display: flex; padding: 4px 6px 6px; }
+  #view > .grid .ann { max-height: 96px; overflow: auto; }
+  #view > .grid textarea.cm { border: 0; background: var(--bg); min-height: 44px; padding: 11px 12px; max-height: 96px; }
+  #view > .grid .rz { display: none; }
+  #view > .grid > .card .zc { right: 8px; }
+  .mvc { display: flex; position: absolute; z-index: 4; top: 8px; right: 8px; gap: 2px; padding: 2px; border-radius: 22px; background: color-mix(in srgb, var(--bg) 88%, transparent); box-shadow: 0 0 0 1px var(--line-2), 0 8px 24px rgba(0,0,0,.4); backdrop-filter: blur(8px); }
+  .mvc .ib { width: 40px; height: 40px; border-radius: 20px; }
+  .mvc .ib svg { width: 20px; height: 20px; }
+  .mvc .sw { width: 20px; height: 20px; border-radius: 5px; }
+  .card.bare .mvc { right: auto; left: 8px; }
+  /* bottom bar: "Write to the agent" (attach, dictate) + more like this; then start over, request changes, approve */
+  #dock { position: static; grid-column: 1; grid-row: 2; max-width: none; align-items: stretch; gap: 0; }
+  #sent.show { margin: 0 12px 4px; align-self: flex-start; }
+  #dock .fab { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto 48px; grid-auto-rows: 48px; align-items: center; gap: 8px; height: auto; padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); border-radius: 0; background: var(--bg); box-shadow: none; overflow: visible; }
+  #dock .fab > :is(#chosen, #bChips, .vsep), #bMore { display: none; }
+  #dock .acts { display: contents; }
+  #dock .fab .ib { width: 44px; height: 44px; border-radius: 22px; }
+  #dock .fab .ib svg { width: 20px; height: 20px; }
+  #bAsk { grid-area: 1 / 1 / 2 / 4; height: 48px; margin: 0; padding: 0 96px 0 14px; border-radius: 22px; font-size: 15px; gap: 9px; }
+  #bAsk svg { width: 20px; height: 20px; }
+  #bAsk .lb { display: block; max-width: none; flex: 1; text-align: left; white-space: nowrap; }
+  #bAsk kbd, #bAsk .cv { display: none; }
+  /* attach and dictate sit inside the right end of the field */
+  #bAttach, #bMic { grid-area: 1 / 3; justify-self: end; z-index: 1; }
+  #bAttach { translate: -44px; } #bMic { margin-right: 2px; }
+  #dock :is(#bLike, #bRegen) { display: grid; width: 48px; height: 48px; border-radius: 22px; background: var(--surf); box-shadow: inset 0 0 0 1px var(--line-2); }
+  #bLike { grid-area: 1 / 4; } #bRegen { grid-area: 2 / 1; }
+  #dock .fab .btn { height: 48px; border-radius: 22px; justify-content: center; font-size: 15px; min-width: 0; }
+  #dock .fab .btn svg { width: 18px; height: 18px; }
+  #bRevise { grid-area: 2 / 2; padding: 0 10px; gap: 6px; }
+  #dock #bRevise.ghost { background: var(--surf-3); color: var(--ink); }
+  #dock #bRevise > span { display: inline; overflow: hidden; text-overflow: ellipsis; }
+  #dock #bRevise > .ln { display: none; }
+  #bChoose { grid-area: 2 / 3 / 3 / 5; padding: 0 16px 0 14px; }
+  #bRevise.pri { grid-column: 2 / -1; }
+  #bRegen[style*="none"] + #bRevise { grid-column: 1 / -1; }
+  .fab:has(#bLike[style*="none"]) :is(#bAsk, #bAttach, #bMic) { grid-column: 1 / -1; }
+  #dock.team .fab { display: flex; height: 56px; }
+  /* the note panel is a tall sheet over a dimmed screen */
+  #dock.open::before, body.drawer-open::before { content: ""; position: fixed; inset: 0; z-index: 44; background: rgba(8,8,10,.62); }
+  #dock.open .fab { visibility: hidden; }
+  .pnl { position: fixed; z-index: 45; left: 0; right: 0; bottom: 0; top: calc(env(safe-area-inset-top) + 64px); width: auto; border-radius: 16px 16px 0 0; padding: 8px 14px calc(12px + env(safe-area-inset-bottom)); gap: 12px; overflow-y: auto; box-shadow: 0 -1px 0 var(--line-2), 0 -20px 60px rgba(0,0,0,.5); }
+  :root[data-ui="light"] .pnl { box-shadow: 0 -1px 0 var(--line-2), 0 -20px 60px rgba(20,20,40,.18); }
+  .pnl::before, #drawer::before { content: ""; width: 36px; height: 5px; border-radius: 3px; background: var(--line-2); margin: 0 auto 2px; flex: none; }
+  .pnl-h { font-size: 13px; }
+  .pnl-h b { font-size: 18px; }
+  .pnl-h .ib { width: 44px; height: 44px; }
+  #note { min-height: 118px; }
+  .pl { font-size: 12px; }
+  .ref { width: 56px; height: 44px; }
+  .addref { height: 44px; }
+  #chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; padding: 0 14px; }
+  #chips button { flex: none; height: 36px; border-radius: 18px; padding: 0 13px; font-size: 14px; }
+  .pnl-f { margin-top: auto; padding-top: 4px; border-top: 0; gap: 2px; flex-wrap: nowrap; }
+  #pnlKeys { display: none; }
+  .pnl-f .ib.mob { display: inline-grid; width: 44px; height: 44px; border-radius: 22px; }
+  .pnl-f .ib.mob svg { width: 20px; height: 20px; }
+  .pnl-f .btn.mob { display: inline-flex; }
+  .pnl-f .btn { height: 44px; border-radius: 22px; padding: 0 16px; font-size: 14.5px; min-width: 0; }
+  .pnl-f .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #bSendNote > span:not(.ln) { display: none; }
+  #bSendNote > .ln { display: inline; }
+  #pChoose { flex: none; margin-left: 4px; }
+  #bSendNote { padding: 0 12px; }
+  #bSendNote svg { display: none; }
+  #view > .grid .badge.aud.clean { display: none; }
+  #pMic.rec { color: var(--bad); background: rgba(255,123,123,.12); }
+  /* rounds: a bottom sheet with the rail along its bottom edge */
+  #drawer { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 56px); bottom: 0; width: auto; z-index: 45; border: 0; border-radius: 16px 16px 0 0; background: var(--surf-2); padding: 8px 0 calc(58px + env(safe-area-inset-bottom)); }
+  body.drawer-open #drawer { box-shadow: 0 -1px 0 var(--line-2), 0 -20px 60px rgba(0,0,0,.5); }
+  .dr-h { align-items: center; padding: 4px 6px 4px 18px; }
+  .dr-h b { font-size: 18px; }
+  .dr-h small { flex: 1; font-size: 13px; }
+  #drClose { display: inline-grid; width: 44px; height: 44px; }
+  .dr-s { padding: 4px 14px 8px; }
+  .dr-s input { height: 44px; background: var(--surf); }
+  .tr { min-height: 44px; font-size: 15px; gap: 10px; }
+  .tr.g { font-size: 16px; }
+  .tr .num, .tr .cnt { font-size: 13px; min-width: 28px; }
+  .tr .chev { width: 14px; height: 14px; }
+  .st { width: 14px; height: 14px; }
+  body.drawer-open #rail { display: flex; position: fixed; z-index: 46; left: 0; right: 0; bottom: 0; flex-direction: row; justify-content: space-around; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--line-2); background: var(--surf-2); }
+  #rail .logo, #rail .sp { display: none; }
+  #rail .ri { width: 44px; height: 44px; }
+  #rail .ri svg { width: 20px; height: 20px; }
+  #rail .conn { margin: 0; align-self: center; }
+  @media (prefers-reduced-motion: no-preference) {
+    body.drawer-open #drawer, #dock.open .pnl { transition: translate .22s cubic-bezier(.2, .8, .2, 1); }
+    @starting-style { body.drawer-open #drawer, #dock.open .pnl { translate: 0 100%; } }
+  }
+}
+@media (max-width: 389px) {
+  #dock #bRevise:has(.ln) > span:not(.ln) { display: none; }
+  #dock #bRevise > .ln { display: inline; }
+  #view > .grid .card-h .pos { display: none; }
 }
 
 /* ---------- tooltip ---------- */
