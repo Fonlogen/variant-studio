@@ -131,3 +131,5 @@ body { font: 12px/1.3 system-ui, -apple-system, "Segoe UI", Ubuntu, Cantarell, s
 .sk-leopard .mbar { height: 22px; font-family: "Lucida Grande", sans-serif; background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(220,220,220,.8)); }
 .sk-leopard .dock { height: 56px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(200,210,230,.55)); transform: translateX(-50%) perspective(300px) rotateX(28deg); transform-origin: bottom; }
 .sk-yosemite .mbar { height: 22px; font-family: "Helvetica Neue", sans-serif; } .sk-yosemite .dock { border-radius: 4px 4px 0 0; bottom: 0; }
+
+.dk.c-gray { background: #c9c9cf; } .dk.c-black { background: #000; color: #eceef2; } .dk.c-custom { background: var(--vs-canvas, #fff); }

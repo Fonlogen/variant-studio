@@ -63,3 +63,5 @@ body { font: 13px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -
 .f-clay .k { background: var(--c, #e2d5c7); width: 7px; box-shadow: 2px 3px 5px rgba(110,85,60,.25); }
 .f-clay .ear { background: color-mix(in oklab, #e7cdc4, #5a4034 25%); }
 .f-clay .hbtn { border: 0; background: linear-gradient(150deg, #f1dfd8, #dcbfb5); box-shadow: 4px 6px 10px rgba(110,70,55,.3), -3px -3px 7px rgba(255,255,255,.75); }
+
+.cv.c-gray { background: #c9c9cf; } .cv.c-black { background: #000; color: #eceef2; } .cv.c-custom { background: var(--vs-canvas, #fff); }

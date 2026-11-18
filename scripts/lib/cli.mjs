@@ -140,7 +140,7 @@ function newRound() {
     // iterations keep the parent's kind and target viewports unless told otherwise: losing them made desktop rounds render as mobile (and vice versa)
     kind,
     design,
-    ...(args.viewports ? { viewports: String(args.viewports).split(',').map((v) => v.trim()) } : parentManifest.viewports ? { viewports: parentManifest.viewports } : {}),
+    ...(['tui', 'app', 'desktop', 'logo'].includes(design) ? {} : args.viewports ? { viewports: String(args.viewports).split(',').map((v) => v.trim()) } : parentManifest.viewports ? { viewports: parentManifest.viewports } : {}),
     ...(args.parent ? { parent: args.parent } : {}),
     head: args.head ? String(args.head).split(',') : [],
     variants: ids.map((v) => ({ id: v, label: prettyId(v), notes: '' })),
@@ -151,6 +151,7 @@ function newRound() {
   const w = [];
   if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".');
   if (args.kind && kind !== args.kind) w.push(`--kind ${args.kind} ignored: design ${design} renders as a component.`);
+  if (args.viewports && ['tui', 'app', 'desktop', 'logo'].includes(design)) w.push(`--viewports ignored: in ${design} mode the studio draws the frame and the user picks its size; write only the screen inside it.`);
   if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`);
   print({ type: 'round-created', id, dir, group: group || null, ...(w.length ? { warning: w.join(' ') } : {}), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), design, generation: generationBrief(P, { dir, ids, agent: args.agent, design }), then: 'Follow `generation` (mode rules and subagents), write every variant file, fill label/notes in round.json, then run `present`.' });
 }

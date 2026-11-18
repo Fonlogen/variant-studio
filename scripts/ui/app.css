@@ -157,14 +157,17 @@ body:not(.drawer-open) #drawer { border: 0; }
 .agent b { font-weight: 600; }
 #banner { display: none; margin: 0 20px 8px; padding: 10px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--warn); font-size: 12.5px; }
 #banner.show { display: block; }
-#stage { flex: 1; overflow: auto; padding: 2px 20px 90px; position: relative; }
+#stage { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: 2px 20px 90px; position: relative; }
 #view { min-height: 100%; }
 .newpill { position: sticky; top: 0; z-index: 6; display: none; margin: 0 auto 10px; border: 0; border-radius: 99px; padding: 8px 14px; background: var(--acc); color: var(--acc-ink); font-weight: 600; box-shadow: var(--shadow); }
 .newpill.show { display: flex; }
 
 /* ---------- grid + cards ---------- */
 /* 12 columns: each card spans a share of them (preset or resized by the user); cards keep their natural height */
-.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+/* cards in a row share one height by default (the tallest); a card the user resized keeps its own */
+.grid > .card .stage { flex: 1; align-items: center; }
+.grid > .card.sized { align-self: flex-start; }
 .grid > .card { flex: 0 0 auto; width: var(--cw, calc((100% - 32px) / 3)); min-width: 0; }
 .grid.one > .card { width: 100%; }
 .card { background: var(--surf); border-radius: var(--r-lg); display: flex; flex-direction: column; min-width: 0; outline: 1.5px solid transparent; outline-offset: 0; transition: outline-color .12s, box-shadow .12s; box-shadow: 0 0 0 1px var(--line); position: relative; }

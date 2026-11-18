@@ -298,7 +298,8 @@ function currentVp(r) {
   return VP[key] === undefined ? VP.laptop : VP[key];
 }
 const isSmallVp = (r) => { const k = currentVpKey(r); return k === 'mobile' || k === 'tablet' || (k === 'custom' && customW(r) <= 820) || (k === 'auto' && r?.kind !== 'component' && designVp(r)[0] <= 820); };
-const deviceOn = (r) => S.device && ['mobile', 'tablet'].includes(currentVpKey(r));
+// the old device frame is for web pages at phone/tablet width; design modes draw their own frame (phone, window, terminal)
+const deviceOn = (r) => S.device && !shelled(r) && ['mobile', 'tablet'].includes(currentVpKey(r));
 
 // ---------------- design-mode shells (terminal, phone, desktop window, logo previews) ----------------
 const SHELLED = ['tui', 'app', 'desktop', 'logo'];
@@ -431,7 +432,8 @@ function layoutFrame(f, availW) {
   const pad = dev ? (currentVpKey(r) === 'tablet' ? 14 : 11) : 0;
   const cw = (availW ?? (holder ? holder.clientWidth : 0)) - (dev ? 2 * pad + 48 : 0);
   if (cw <= 0) return;
-  const vpW = currentVpKey(r) === 'auto' && r.kind === 'component' ? cw : vp[0];
+  // auto width: the card's width, unless the component has a fixed width larger than that (then it is scaled to fit)
+  const vpW = currentVpKey(r) === 'auto' && r.kind === 'component' ? Math.max(cw, f.w > cw + 1 ? f.w : 0) : vp[0];
   let H = fixedH ? vp[1] : Math.max(60, f.h);
   const z = zoomOf(f);
   let s = z === 'fit' ? Math.min(1, cw / vpW) : Number(z);
@@ -470,13 +472,14 @@ function applySpans() {
       const per = 12 / (sz.span || base);
       let w = sz.wf ? sz.wf * W : (W - (per - 1) * gap) / per;
       if (W < 640) w = W; else if (W < 980) w = Math.max(w, (W - gap) / 2);
-      card.style.setProperty('--cw', Math.round(Math.min(W, Math.max(200, w))) + 'px');
+      card.style.setProperty('--cw', Math.floor(Math.min(W, Math.max(200, w)) * 10) / 10 - .1 + 'px'); // floor: rounding up wrapped the last card
     }
   }
 }
 // compare.js loads after this file; the first ResizeObserver callback can run before it does
 function layoutFrames() { applySpans(); for (const f of liveFrames()) if (f.role !== 'layer') layoutFrame(f); if (typeof layoutCompare === 'function') layoutCompare(); }
-new ResizeObserver(() => layoutFrames()).observe($('#stage'));
+let stageW = 0, stageRaf = 0;
+new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w === stageW) return; stageW = w; cancelAnimationFrame(stageRaf); stageRaf = requestAnimationFrame(layoutFrames); }).observe($('#stage'));
 
 // ---------------- messages from previews ----------------
 const snapWait = new Map();
@@ -487,7 +490,7 @@ addEventListener('message', (e) => {
   if (!f) return;
   const fk = f.it.fk;
   if (d.type === 'ready') sendFrame(f);
-  if (d.type === 'size') { f.h = d.h; if (f.role === 'layer') layoutCompare(); else layoutFrame(f); }
+  if (d.type === 'size') { f.h = d.h; if (d.w) f.w = d.w; if (f.role === 'layer') layoutCompare(); else layoutFrame(f); }
   if (d.type === 'error') { f.errors.push(d.message); updateBadges(fk); }
   // an option changed inside a shell (terminal font, opacity…): it applies to every variant of the round, for comparison
   if (d.type === 'shellOpts' && d.opts && typeof d.opts === 'object') { const rs = (S.rstate[f.r.id] ||= {}); rs.term = { ...(rs.term || {}), ...d.opts }; persist(); for (const o of liveFrames()) if (o.r.id === f.r.id) sendFrame(o); return; }

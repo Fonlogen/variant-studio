@@ -42,14 +42,16 @@
   }
 
   // ---- size reporting ----
-  let lastH = 0;
+  let lastH = 0, lastW = 0;
   function measure() {
     const root = document.getElementById('vs-root');
     const b = document.body;
     if (!b) return;
     // never use html.scrollHeight: it is >= the iframe height and would prevent shrinking
     const h = Math.ceil(root ? root.getBoundingClientRect().bottom + scrollY : b.scrollHeight);
-    if (Math.abs(h - lastH) > 1) { lastH = h; post({ type: 'size', h }); }
+    // natural width too: a fixed-width component wider than its card gets scaled down instead of cropped
+    const w = Math.ceil(Math.max(root ? root.scrollWidth : 0, b.scrollWidth));
+    if (Math.abs(h - lastH) > 1 || Math.abs(w - lastW) > 1) { lastH = h; lastW = w; post({ type: 'size', h, w }); }
   }
   const ro = new ResizeObserver(measure);
   const observe = () => { ro.observe(document.body); const r = document.getElementById('vs-root'); if (r) ro.observe(r); measure(); };

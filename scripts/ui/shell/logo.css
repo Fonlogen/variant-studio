@@ -43,3 +43,5 @@ body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; c
 .mono div { display: grid; place-items: center; height: 84px; border-radius: 8px; }
 .mono .b { background: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); } .mono .b img { filter: brightness(0); }
 .mono .w { background: #111; } .mono .w img { filter: brightness(0) invert(1); }
+
+.lg.c-gray { background: #c9c9cf; } .lg.c-black { background: #000; color: #eceef2; } .lg.c-custom { background: var(--vs-canvas, #fff); }

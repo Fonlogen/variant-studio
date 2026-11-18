@@ -1,5 +1,7 @@
 // Shell around a variant (tui / app / desktop / logo rounds). The variant runs in an inner iframe (?raw=1) with frame.js;
 // this page relays the gallery's messages to it and reports its own size. Each design script sets vsShell.render().
+// canvas presets match the gallery picker; a hex colour is 'custom', painted with --vs-canvas
+function canvasName(c) { if (/^#[0-9a-f]{3,8}$/i.test(c)) { document.documentElement.style.setProperty('--vs-canvas', c); return 'custom'; } return c; }
 (() => {
   const C = window.__VS_SHELL__ || {};
   const qs = new URLSearchParams(location.search);
@@ -7,7 +9,7 @@
   let opts = {};
   try { opts = JSON.parse(qs.get('so') || '{}') || {}; } catch {}
   const S = window.vsShell = {
-    C, qs, opts, labels: {}, theme: qs.get('theme') || 'light', canvas: qs.get('canvas') || 'light', fitH: 0, innerH: 0, inner: null,
+    C, qs, opts, labels: {}, theme: qs.get('theme') || 'light', canvas: canvasName(qs.get('canvas') || 'gray'), fitH: 0, innerH: 0, inner: null,
     root: document.getElementById('vs-shell'),
     L: (k) => S.labels[k] || k,
     up: (m) => { try { parent.postMessage({ vs: true, ...meta, ...m }, '*'); } catch {} },
@@ -35,7 +37,7 @@
     }
     if (!d.vsHost) return;
     if (d.type === 'shell') { S.opts = d.opts || {}; if (d.labels) S.labels = d.labels; if (d.fit) S.fitH = d.fit; S.render(); return; }
-    if (d.type === 'canvas') { S.canvas = d.value || ''; S.render(); return; } // the shell paints its own backdrop
+    if (d.type === 'canvas') { S.canvas = canvasName(d.value || ''); S.render(); return; } // the shell paints its own backdrop
     if (d.type === 'theme') { S.theme = d.value; scheme(); S.render(); }
     try { S.inner?.contentWindow.postMessage(d, '*'); } catch {}
   });
