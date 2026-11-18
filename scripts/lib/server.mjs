@@ -4,18 +4,21 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readJSON, writeJSON, print, now, pidAlive, lanAddress } from './util.mjs';
+import { readJSON, writeJSON, print, now, pidAlive, lanAddress, MIME } from './util.mjs';
 import { VERSION, UI, USER_DIR, REGISTRY, DEFAULT_PORT, HOSTNAME, LANG_NAMES, userConfig, saveUserConfig } from './config.mjs';
 import { project, ensureDirs, agentStatus, sessionPins, rotateGuestPin, writeNotice, clearNotice, PIN_RE } from './project.mjs';
 import { SAFE, listRounds, loadRound, pendingEntries, saveImage, snapshot } from './rounds.mjs';
 import { receiveDecision, cancelDecision } from './decisions.mjs';
 import { renderVariant } from './render.mjs';
+import { renderPreview, wallpaperFile } from './shells.mjs';
+import { exportVariant, EXPORT_AS } from './export.mjs';
+import { zip } from './zip.mjs';
+import { writeLogoSet, extractSvgs } from './logo.mjs';
 import { settings, cleanSettings } from './generation.mjs';
 import { createTunnel, findCloudflared } from './tunnel.mjs';
 import { qrSvg } from './qr.mjs';
 import { pinPage } from './pinpage.mjs';
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp4': 'video/mp4', '.webm': 'video/webm' };
 const BLOCKED = /(^|[\\/])(\.env[^\\/]*|\.git|\.ssh|node_modules[\\/]\.cache|id_rsa[^\\/]*|.*\.pem|.*\.key)([\\/]|$)/i;
 // servers started with another VARIANT_STUDIO_HOME are someone else's: never reuse them
 export const HOME_ID = crypto.createHash('sha1').update(USER_DIR).digest('hex').slice(0, 12);
@@ -61,7 +64,7 @@ function isLocal(req) {
 // what a guest (teammate link, LAN or remote) may reach: view, vote, export. Never decisions, uploads or project sources.
 const GUEST_P_ASSET = /\.(css|woff2?|ttf|otf|png|jpe?g|gif|webp|avif|svg|ico)$/i;
 function guestAllowed(p, method) {
-  if (method === 'GET' && (p === '/' || p === '/index.html' || p.startsWith('/_ui/') || p === '/_global.css' || p === '/api/state' || p === '/api/stream' || p === '/api/agent' || p.startsWith('/v/') || p.startsWith('/r/') || p.startsWith('/x/'))) return true;
+  if (method === 'GET' && (p === '/' || p === '/index.html' || p.startsWith('/_ui/') || p === '/_global.css' || p === '/api/state' || p === '/api/stream' || p === '/api/agent' || p.startsWith('/v/') || p.startsWith('/r/') || p.startsWith('/x/') || p === '/_wallpaper' || p === '/api/export')) return true;
   if (method === 'GET' && p.startsWith('/p/')) return GUEST_P_ASSET.test(p);
   if (method === 'POST' && (p === '/api/vote' || p === '/api/log')) return true;
   return false;
@@ -309,11 +312,34 @@ export async function serve(o = {}) {
       return sendFile(res, f);
     }
     if (p === '/_global.css') return sendFile(res, path.join(P.home, 'global.css'));
+    if (p === '/_wallpaper') return sendFile(res, wallpaperFile(P));
+    // one variant as a download: single .html, or a .zip for split / shared
+    if (p === '/api/export') {
+      const roundId = u.searchParams.get('round') || '', vid = u.searchParams.get('variant') || '', as = u.searchParams.get('as') || 'single';
+      if (!SAFE.test(roundId) || !/^[\w.-]+$/.test(vid) || !EXPORT_AS.includes(as)) return json(res, 400, { error: 'bad export request' });
+      const out = await exportVariant(P, roundId, vid, as);
+      const one = as === 'single';
+      const body = one ? Buffer.from(out.files[out.name]) : zip(out.files);
+      res.writeHead(200, { 'Content-Type': one ? MIME['.html'] : 'application/zip', 'Cache-Control': 'no-store', 'Content-Disposition': `attachment; filename="${out.name}${one ? '' : '.zip'}"` });
+      return res.end(body);
+    }
+    // logo set rasterized in the browser (no headless Chrome on this machine): PNG data URLs -> files + favicon.ico
+    if (p === '/api/logo-set' && req.method === 'POST') {
+      const body = JSON.parse(await readBody(req, 40e6));
+      const roundId = String(body.round || ''), vid = String(body.variant || '');
+      const src = SAFE.test(roundId) && /^[\w.-]+$/.test(vid) && path.join(P.rounds, roundId, vid + '.html');
+      if (!src || !fs.existsSync(src)) return json(res, 400, { error: 'bad round or variant' });
+      const pngs = {};
+      for (const [name, d] of Object.entries(body.files || {})) { const m = /^data:image\/png;base64,(.+)$/.exec(String(d)); if (m && /^[\w.-]+\.png$/.test(name)) pngs[name] = Buffer.from(m[1], 'base64'); }
+      const dir = path.join(P.home, 'exports', `logo-${roundId}-${vid}`);
+      const files = writeLogoSet(dir, { ...extractSvgs(fs.readFileSync(src, 'utf8')), pngs });
+      return json(res, 200, { ok: true, dir, files: files.map((f) => path.basename(f)) });
+    }
     if (p.startsWith('/v/')) {
       const [, , roundId, file] = p.split('/');
       if (!SAFE.test(roundId || '') || !/^[\w.-]+\.html?$/i.test(file || '')) { res.writeHead(400); return res.end(); }
       if (!fs.existsSync(path.join(P.rounds, roundId, file))) return html(res, 404, '<!doctype html><body style="font:14px system-ui;color:#888;display:grid;place-items:center;height:90vh">Not generated yet…</body>');
-      return html(res, 200, renderVariant(P, roundId, file, { prefix: '/' + pin }));
+      return html(res, 200, renderPreview(P, roundId, file, { prefix: '/' + pin, raw: u.searchParams.get('raw') === '1' }));
     }
     if (p.startsWith('/r/')) {
       const rest = p.slice(3);

@@ -233,7 +233,10 @@
       if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
     }
     let base = { r: 255, g: 255, b: 255, a: 1 };
-    if (html.dataset.theme === 'dark' && !layers.some((l) => l.a >= 1)) base = { r: 15, g: 15, b: 18, a: 1 };
+    if (!layers.some((l) => l.a >= 1)) {
+      if (html.dataset.vsDesign === 'tui') base = { r: 22, g: 24, b: 38, a: 1 }; // the shell's terminal window behind a transparent screen
+      else if (html.dataset.theme === 'dark') base = { r: 15, g: 15, b: 18, a: 1 };
+    }
     return layers.reverse().reduce((acc, l) => blend(l, acc), base);
   }
   function audit() {

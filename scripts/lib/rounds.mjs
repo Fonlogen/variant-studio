@@ -8,6 +8,11 @@ import { ensureDirs } from './project.mjs';
 export const SAFE = /^[a-z0-9][a-z0-9._-]*$/i;
 export const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
 export const KINDS = ['component', 'section', 'page'];
+// design mode of a round: what the gallery wraps each variant in (tui: terminal shell, app: phone frame, desktop: OS window, logo: usage previews)
+export const DESIGNS = ['ui', 'component', 'tui', 'app', 'desktop', 'logo'];
+export const SHELLED = ['tui', 'app', 'desktop', 'logo'];
+export const SCREEN_DESIGNS = ['tui', 'app', 'desktop'];
+export const designOf = (m) => (DESIGNS.includes(m?.design) ? m.design : 'ui');
 
 export function listRounds(P) {
   if (!fs.existsSync(P.rounds)) return [];
@@ -51,6 +56,7 @@ export function loadRound(P, id) {
     title: m.title || id.replace(/^\d+-/, '').replace(/[-_]/g, ' '),
     question: m.question || '',
     kind: KINDS.includes(m.kind) ? m.kind : 'component',
+    design: designOf(m),
     viewports: m.viewports || null,
     canvas: m.canvas || null,
     parent: m.parent || null,

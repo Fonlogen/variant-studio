@@ -202,7 +202,7 @@ async function submit(action, extra = {}) {
       ...(c.kind === 'approved' && action === 'revise' ? { approved_variant: c.ap } : {}),
       ...(c.kind === 'shortlist' ? { shortlist: true } : {}),
       ...(extra.no_hold || action !== 'choose' ? { no_hold: true } : {}),
-      viewed_at: { viewport: vpKey === 'custom' ? 'custom' : vpKey, width: currentVp(r)[0], theme: S.theme, layout: S.layout, ...(rs.state ? { state: rs.state } : {}), ...(rs.content ? { content: rs.content } : {}) },
+      viewed_at: { viewport: vpKey === 'custom' ? 'custom' : vpKey, width: currentVp(r)[0], theme: S.theme, layout: S.layout, ...(rs.state ? { state: rs.state } : {}), ...(rs.content ? { content: rs.content } : {}), ...(shelled(r) ? { shell: Object.fromEntries(c.items.filter(it => it.v).map(it => [it.key, shellOpts(r, it.v.id)])) } : {}) },
     };
     if (!STATIC && !['export', 'unapprove'].includes(action)) {
       const shots = await shotsFor(c, selected.length ? selected : action === 'regenerate' ? c.items.slice(0, 3).map(i => i.key) : []);

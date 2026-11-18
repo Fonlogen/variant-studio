@@ -88,9 +88,22 @@ function vpLabel(r) {
   if (k === 'auto') return r?.kind === 'component' ? t('Fit') : designVp(r)[0] + 'px';
   return { mobile: t('Mobile'), tablet: t('Tablet'), laptop: t('Laptop'), desktop: t('Desktop') }[k] || k;
 }
+// design modes: names, and the shell options the gallery offers (round-wide in the top bar, per variant in the card menu)
+const DESIGN_NAMES = () => ({ ui: t('UI'), component: t('Component'), tui: t('TUI'), app: t('App'), desktop: t('Desktop'), logo: t('Logo') });
+const PHONE_SKINS = { ip8: 'iPhone 8', ipx: 'iPhone X', ip18: 'iPhone 18', px3: 'Pixel 3', px6: 'Pixel 6', px8: 'Pixel 8', px10p: 'Pixel 10 Pro', s25: 'Galaxy S25', s25u: 'Galaxy S25 Ultra' };
+const DESK_SKINS = { mac: 'macOS', yosemite: 'OS X Yosemite', leopard: 'Mac OS X Leopard', aqua: 'Mac OS X Aqua', win11: 'Windows 11', win10: 'Windows 8 / 10', win7: 'Windows 7', xp: 'Windows XP', gnome: 'Ubuntu GNOME', kde: 'KDE Plasma' };
+function shellChoices(r) {
+  if (r.design === 'tui') return [{ key: 'shell', label: t('Terminal'), def: 'acrylic', opts: [['acrylic', t('Acrylic window')], ['tabs', t('Tabs')], ['tmux', 'tmux']] }];
+  if (r.design === 'app') return [{ key: 'skin', label: t('Phone'), def: 'ip18', opts: Object.entries(PHONE_SKINS) }, { key: 'frame', label: t('Frame'), def: 'real', opts: [['real', t('Realistic')], ['flat', t('Flat outline')], ['clay', t('Clay')]] }];
+  if (r.design === 'desktop') return [{ key: 'skin', label: t('Window'), def: 'mac', opts: Object.entries(DESK_SKINS) }, { key: 'win', label: t('Size'), def: '1280x800', opts: ['1024x768', '1280x800', '1440x900', '1920x1080'].map(x => [x, x.replace('x', '×')]) },
+    { key: 'desk', label: t('Desktop'), def: '', opts: [['', t('Window only')], ['1', t('Show desktop')]] }];
+  return [];
+}
 function renderTopbar(c = ctx()) {
   const r = c && (c.r || c.target);
   const special = SPECIAL_VIEWS.includes(S.layout);
+  const mb = $('#modeBadge');
+  if (mb) { const show = r && c.kind !== 'shortlist' && !special; mb.hidden = !show; if (show) { mb.textContent = DESIGN_NAMES()[r.design] || r.design; mb.dataset.design = r.design; mb.title = t('Design mode: {x}', { x: mb.textContent }); } }
   $('#viewSeg').style.display = special || !c ? 'none' : '';
   seg($('#viewSeg'), viewItems(), S.layout, setLayout);
   $('#viewSeg').classList.add('icons');
@@ -109,6 +122,13 @@ function renderTopbar(c = ctx()) {
       box.append(sel);
     };
     mk(r.states || [], 'state', t('State')); mk(r.content || [], 'content', t('Content'));
+    for (const ch of shellChoices(r)) {
+      const sel = h('select', { class: 'tx', 'aria-label': ch.label, title: t('{x}: every variant of this round (a variant can override it from its ⋯ menu)', { x: ch.label }), style: 'height:34px' });
+      // option text without the "Label:" prefix keeps the bar short; the label stays in title/aria-label
+      ch.opts.forEach(([v, l]) => sel.append(h('option', { value: v, selected: String(rs[ch.key] ?? ch.def) === v }, l)));
+      sel.onchange = () => setShell(r, { [ch.key]: sel.value === ch.def ? null : sel.value });
+      box.append(sel);
+    }
   }
   icon($('#themeBtn'), S.theme === 'dark' ? 'moon' : 'sun'); $('#themeBtn').title = t('Variant theme: light / dark (D)');
   $('#themeBtn').style.display = special ? 'none' : '';
@@ -371,10 +391,38 @@ function buildCard(c, it, opts = {}) {
   setTimeout(() => updateBadges(fk));
   return card;
 }
+function shellMenu(it) {
+  const r = it.r, own = ((S.rstate[r.id] || {}).by || {})[it.v.id] || {};
+  const out = [];
+  for (const ch of shellChoices(r)) {
+    out.push({ head: t('{x} for this variant', { x: ch.label }) }, { label: t('Same as the round'), checked: own[ch.key] == null, run: () => setShell(r, { [ch.key]: null }, it.v.id) });
+    ch.opts.forEach(([v, l]) => out.push({ label: l, checked: own[ch.key] === v, run: () => setShell(r, { [ch.key]: v }, it.v.id) }));
+  }
+  return out.length ? [...out, { sep: true }] : [];
+}
+async function exportLogoSet(it) {
+  if (STATIC) return toast(t('Exports need the studio server'));
+  try {
+    toast(t('Rendering the logo set…'));
+    const src = await (await fetch(`/r/${encodeURIComponent(it.r.id)}/${encodeURIComponent(it.v.file)}`)).text();
+    const all = src.match(/<svg\b[\s\S]*?<\/svg>/gi) || [];
+    const icon = all.find(x => /^<svg\b[^>]*\bdata-vs-icon\b/i.test(x)) || null, mark = all.find(x => x !== icon) || icon;
+    if (!mark) return toast(t('No inline <svg> found in this variant: the usage previews need the mark as an <svg> element.'));
+    const files = await vsRaster.render(mark, icon);
+    const res = await (await fetch('/api/logo-set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ round: it.r.id, variant: it.v.id, files }) })).json();
+    if (!res.ok) throw new Error(res.error || '?');
+    toast(t('Logo set saved: {x}', { x: res.dir }), { kind: 'good', ms: 7000 });
+  } catch (e) { toast(t('Logo export failed: {x}', { x: e.message })); }
+}
+function exportAs(it, as) {
+  if (STATIC) return toast(t('Exports need the studio server'));
+  download(`/api/export?round=${encodeURIComponent(it.r.id)}&variant=${encodeURIComponent(it.v.id)}&as=${as}`, `${it.r.id}-${it.v.id}${as === 'single' ? '.html' : '-' + as + '.zip'}`);
+}
 function cardMenu(anchor, c, it) {
   const fk = it.fk;
   const canSend = !STATIC || true;
   showMenu(anchor, [
+    ...shellMenu(it),
     { label: t('More like this'), icon: 'spark', run: () => sendQuick('more', it) },
     { label: t('Compare with…'), icon: 'compare', run: () => { S.cmp.a = fk; S.cmp.b = null; setLayout('compare'); } },
     { sep: true },
@@ -388,6 +436,10 @@ function cardMenu(anchor, c, it) {
     { label: t('JPG image'), icon: 'image', run: () => exportImage(it, 'jpeg') },
     { label: t('HTML with my changes'), icon: 'download', title: t('Tokens, text edits, controls and fonts applied; styles and images inlined'), run: () => exportHtml(it, 'live') },
     { label: t('Original HTML'), icon: 'download', title: t('The file as the agent wrote it'), run: () => exportHtml(it, 'source') },
+    it.v.url ? null : { label: t('Single HTML file (all inlined)'), icon: 'download', title: t('Styles, brand, fonts and images inlined in one file'), run: () => exportAs(it, 'single') },
+    it.v.url ? null : { label: t('HTML + CSS + JS (.zip)'), icon: 'download', title: t('index.html, style.css and script.js'), run: () => exportAs(it, 'split') },
+    it.v.url ? null : { label: t('HTML + shared CSS (.zip)'), icon: 'download', title: t('index.html, style.css for this variant and shared.css for the global and round styles'), run: () => exportAs(it, 'shared') },
+    it.r.design === 'logo' && !it.v.url ? { label: t('Export logo set'), icon: 'image', title: t('SVG, PNG 16–1024, favicon.ico, apple-touch-icon and maskable icon, saved in the project'), run: () => exportLogoSet(it) } : null,
     canSend ? { label: t('Ask the agent for a React component'), icon: 'code', run: () => sendQuick('export', it, { framework: 'React' }) } : null,
     canSend ? { label: t('Ask the agent for a Vue component'), icon: 'code', run: () => sendQuick('export', it, { framework: 'Vue' }) } : null,
     canSend ? { label: t('Ask the agent for a Svelte component'), icon: 'code', run: () => sendQuick('export', it, { framework: 'Svelte' }) } : null,

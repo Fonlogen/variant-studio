@@ -1,0 +1,73 @@
+/* Terminal shell: acrylic window (default), tabs, tmux. The terminal is the point: chrome stays slim. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+#vs-shell { --mono: var(--vs-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); --op: .58; --blur: 24px; --fs: 13px;
+  --fg: #e6e9f2; --dim: #9aa0b4; --line: rgba(255,255,255,.08); --acc: #c6a6ff; --acc2: #3a3f62; --ok: #8fdca6; --win: 22, 24, 38; }
+.st { position: relative; padding: 14px; border-radius: 14px; overflow: hidden; background: var(--wall) center / cover no-repeat, #1b1d3a; }
+.st::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 120%, rgba(10,10,25,.45), transparent 60%); }
+.win { position: relative; z-index: 1; border-radius: 10px; color: var(--fg); background: rgba(var(--win), var(--op));
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(160%); backdrop-filter: blur(var(--blur)) saturate(160%);
+  border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 22px 56px -14px rgba(5,6,20,.6); }
+
+/* top: title bar / tabs / tmux name */
+.top { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 10px; border-bottom: 1px solid var(--line); color: #c9cde0; font-size: 12px; }
+.top .ttl { flex: 1; text-align: center; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top .ttl span { color: var(--dim); font-weight: 400; }
+.appic { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; background: linear-gradient(160deg, #3b3f63, #23263d); border: 1px solid rgba(255,255,255,.12); font: 9px var(--mono); color: var(--ok); }
+.wb { display: flex; gap: 2px; color: #aab0c6; }
+.wb i { width: 26px; height: 20px; display: grid; place-items: center; border-radius: 5px; }
+.wb svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 1.3; fill: none; }
+.tabs { height: 34px; align-items: flex-end; padding: 0 6px; gap: 2px; background: rgba(0,0,0,.25); border-radius: 10px 10px 0 0; }
+.tab { display: flex; align-items: center; gap: 7px; height: 28px; min-width: 140px; padding: 0 10px; border-radius: 7px 7px 0 0; color: var(--dim); font-size: 12px; position: relative; }
+.tab .x { margin-left: auto; font-size: 10px; opacity: .6; }
+.tab.on { background: rgba(var(--win), .9); color: var(--fg); }
+.tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--acc); }
+.tab .ic { font: 12px var(--mono); }
+.tab.on .ic { color: var(--acc); }
+.tabs .plus { align-self: center; padding: 0 8px; color: var(--dim); font-size: 15px; }
+.tabs .sp { flex: 1; }
+.tabs .wb { align-self: center; }
+.tmuxbar { height: 26px; justify-content: flex-start; font: 600 11.5px var(--mono); background: rgba(255,255,255,.03); border-radius: 10px 10px 0 0; }
+.tmuxbar i { font-style: normal; color: var(--ok); }
+
+/* slim options row */
+.tools { display: flex; align-items: center; gap: 12px; height: 28px; padding: 0 10px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
+.tools label { display: flex; align-items: center; gap: 6px; }
+.tools select, .tools input[type=text] { height: 20px; padding: 0 6px; border-radius: 5px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: var(--fg); font: 11.5px Inter, system-ui, sans-serif; max-width: 170px; }
+.tools select option { color: #111; }
+.tools input[type=range] { width: 64px; accent-color: var(--acc); height: 12px; }
+.tools b { font: 400 10.5px var(--mono); color: var(--fg); min-width: 30px; }
+.tools .sw { display: flex; gap: 5px; }
+.tools .sw button { width: 20px; height: 14px; padding: 0; border-radius: 4px; border: 1px solid rgba(255,255,255,.22); cursor: pointer; background: var(--b) center / cover; }
+.tools .sw button[aria-pressed=true] { outline: 2px solid var(--acc); outline-offset: 1px; }
+.tools .sz button { width: 18px; height: 18px; padding: 0; border-radius: 4px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: var(--fg); cursor: pointer; line-height: 1; }
+.tools .grow { flex: 1; }
+
+/* terminal: the variant's screen, what was typed, the prompt */
+.term { padding: 10px 12px 12px; font: var(--fs)/1.5 var(--mono); cursor: text; }
+.screen { display: block; width: 100%; border: 0; background: transparent; }
+.typed div { white-space: pre-wrap; word-break: break-all; }
+.typed .p { color: var(--ok); }
+.prompt { display: flex; align-items: center; white-space: pre; margin-top: 6px; }
+.seg { padding: 0 8px; line-height: 1.55; }
+.seg.s1 { background: var(--acc); color: #1c1530; border-radius: 4px 0 0 4px; font-weight: 700; }
+.seg.a1 { padding: 0; color: var(--acc); background: var(--acc2); }
+.seg.s2 { background: var(--acc2); color: #e4e6f2; }
+.seg.a2 { padding: 0; color: var(--acc2); }
+.caret { margin: 0 8px 0 10px; color: var(--ok); }
+.prompt input { flex: 1; min-width: 40px; border: 0; outline: 0; padding: 0; background: transparent; color: var(--fg); font: inherit; caret-color: var(--ok); }
+.tmux { display: flex; height: 22px; font: 11.5px/22px var(--mono); background: rgba(22,26,33,.95); border-radius: 0 0 10px 10px; overflow: hidden; }
+.tmux .sess { background: var(--ok); color: #0e1014; font-weight: 700; padding: 0 10px; }
+.tmux .w { padding: 0 8px; color: var(--dim); }
+.tmux .w.on { color: var(--fg); background: #232834; }
+.tmux .w.on b { color: var(--ok); font-weight: 400; }
+.tmux .r { margin-left: auto; display: flex; }
+.tmux .r span { padding: 0 10px; color: var(--dim); }
+.tmux .r .clk { background: #7aa2f7; color: #0e1014; font-weight: 700; }
+
+/* styles */
+.s-tabs { --acc: #f2b45c; --acc2: #4a3f33; --ok: #a9d18e; --win: 28, 25, 23; --fg: #ece6dc; --dim: #a8a092; }
+.s-tmux { --acc: #9ece6a; --acc2: #232834; --ok: #9ece6a; --win: 14, 16, 20; --fg: #d4d8e0; --dim: #8a91a0; }
+.s-tmux .win { border-radius: 8px; border-color: #2c303a; }
+.s-tmux .seg.s1 { color: #0e1014; }

@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { readJSON, esc } from './util.mjs';
 import { UI } from './config.mjs';
-import { KINDS } from './rounds.mjs';
+import { KINDS, SCREEN_DESIGNS, designOf } from './rounds.mjs';
 
 // `prefix` is the session path (/<PIN>) the variant is served under
-function headItems(P, manifest, roundId, inline, prefix) {
+export function headItems(P, manifest, roundId, inline, prefix) {
   const items = [];
   const g = path.join(P.home, 'global.css');
   const shared = path.join(P.rounds, roundId, '_shared.css');
@@ -21,7 +21,7 @@ function headItems(P, manifest, roundId, inline, prefix) {
   }
   return items.join('\n');
 }
-function brandCss(P) {
+export function brandCss(P) {
   const b = readJSON(P.brand);
   if (!b || b.enabled === false) return '';
   const vars = Object.entries(b.colors || {}).filter(([k, v]) => /^[\w-]+$/.test(k) && typeof v === 'string' && !/[;{}<]/.test(v)).map(([k, v]) => `--brand-${k}:${v};`).join('');
@@ -34,7 +34,9 @@ export function renderVariant(P, roundId, file, opts = {}) {
   const dir = path.join(P.rounds, roundId);
   const prefix = opts.prefix || '';
   const manifest = readJSON(path.join(dir, 'round.json'), {}) || {};
-  const kind = KINDS.includes(manifest.kind) ? manifest.kind : 'component';
+  const design = designOf(manifest);
+  // inside a terminal or a phone the variant is the whole screen, not a centred component
+  const kind = SCREEN_DESIGNS.includes(design) ? 'screen' : KINDS.includes(manifest.kind) ? manifest.kind : 'component';
   const raw = fs.readFileSync(path.join(dir, file), 'utf8');
   const frameJs = opts.bare ? '' : opts.inline ? `<script>${fs.readFileSync(path.join(UI, 'frame.js'), 'utf8')}</script>` : `<script src="/_ui/frame.js"></script>`;
   const brand = brandCss(P);
@@ -47,7 +49,7 @@ export function renderVariant(P, roundId, file, opts = {}) {
   }
   const baseCss = opts.inline ? `<style>${fs.readFileSync(path.join(UI, 'base.css'), 'utf8')}</style>` : `<link rel="stylesheet" href="/_ui/base.css">`;
   return `<!doctype html>
-<html lang="en" data-vs-kind="${kind}">
+<html lang="en" data-vs-kind="${kind}" data-vs-design="${design}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

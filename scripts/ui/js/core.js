@@ -290,18 +290,39 @@ function currentVp(r) {
 const isSmallVp = (r) => { const k = currentVpKey(r); return k === 'mobile' || k === 'tablet' || (k === 'custom' && customW(r) <= 820) || (k === 'auto' && r?.kind !== 'component' && designVp(r)[0] <= 820); };
 const deviceOn = (r) => S.device && ['mobile', 'tablet'].includes(currentVpKey(r));
 
+// ---------------- design-mode shells (terminal, phone, desktop window, logo previews) ----------------
+const SHELLED = ['tui', 'app', 'desktop', 'logo'];
+const shelled = (r) => SHELLED.includes(r?.design);
+// round-wide options (S.rstate[round]) overridden per variant (S.rstate[round].by[variant])
+function shellOpts(r, vid) {
+  const rs = S.rstate[r.id] || {};
+  const base = { ...(rs.term || {}) };
+  for (const k of ['shell', 'skin', 'frame', 'win', 'desk']) if (rs[k] != null && rs[k] !== '') base[k] = rs[k];
+  return { ...base, ...((rs.by || {})[vid] || {}) };
+}
+function setShell(r, patch, vid) {
+  const rs = (S.rstate[r.id] ||= {});
+  const tgt = vid ? ((rs.by ||= {})[vid] ||= {}) : rs;
+  for (const [k, v] of Object.entries(patch)) { if (v == null || v === '') delete tgt[k]; else tgt[k] = v; }
+  if (vid && !Object.keys(tgt).length) delete rs.by[vid];
+  persist(); broadcastFrames();
+}
+const SHELL_LABELS = ['Font', 'Font on this computer…', 'Font family name', 'Opacity', 'Blur', 'Wallpaper', 'Search', 'File', 'Edit', 'View', 'Window', 'Help', 'New tab', 'Browser tab', 'Sizes', 'Monochrome',
+  'No inline <svg> found in this variant: the usage previews need the mark as an <svg> element.', 'Home button', 'Notch', 'Dynamic Island', 'Bezels', 'Punch-hole', 'Squarer corners', 'Phone'];
+
 // ---------------- frames ----------------
 const frames = new Map(); // key -> frame record
 function frameSrc(r, v) {
   if (v.url) return v.url;
   const rs = S.rstate[r.id] || {};
-  return `/v/${encodeURIComponent(r.id)}/${encodeURIComponent(v.file)}?round=${encodeURIComponent(r.id)}&variant=${encodeURIComponent(v.id)}&theme=${S.theme}&canvas=${S.canvas}${rs.state ? '&state=' + encodeURIComponent(rs.state) : ''}${rs.content ? '&content=' + encodeURIComponent(rs.content) : ''}&t=${Math.round(v.mtime)}`;
+  const so = shelled(r) ? '&so=' + encodeURIComponent(JSON.stringify(shellOpts(r, v.id))) : '';
+  return `/v/${encodeURIComponent(r.id)}/${encodeURIComponent(v.file)}?round=${encodeURIComponent(r.id)}&variant=${encodeURIComponent(v.id)}&theme=${S.theme}&canvas=${S.canvas}${rs.state ? '&state=' + encodeURIComponent(rs.state) : ''}${rs.content ? '&content=' + encodeURIComponent(rs.content) : ''}${so}&t=${Math.round(v.mtime)}`;
 }
 function makeFrame(it, opts = {}) {
   const { r, v } = it;
   const role = opts.role || 'card'; // card | focus | thumb | layer
   const key = it.fk + (role === 'card' ? '' : '#' + role + (opts.tag || ''));
-  const iframe = h('iframe', { title: `${r.title}: ${v.label}`, loading: role === 'thumb' ? 'lazy' : null, tabindex: role === 'thumb' ? '-1' : null });
+  const iframe = h('iframe', { title: `${r.title}: ${v.label}`, loading: role === 'thumb' ? 'lazy' : null, tabindex: role === 'thumb' ? '-1' : null, allow: shelled(r) ? 'local-fonts' : null });
   if (STATIC) iframe.srcdoc = v.html || ''; else iframe.src = frameSrc(r, v);
   const scaler = h('div', { class: 'scaler' }, iframe);
   const wrap = h('div', { class: 'pv' }, scaler);
@@ -320,6 +341,10 @@ function zoomControl(f) {
 const postTo = (f, m) => { try { f.iframe.contentWindow.postMessage({ vsHost: true, ...m }, '*'); } catch {} };
 function sendFrame(f) {
   const vd = vdata(f.it.fk);
+  if (shelled(f.r)) {
+    const st = $('#stage').clientHeight;
+    postTo(f, { type: 'shell', opts: shellOpts(f.r, f.v.id), labels: Object.fromEntries(SHELL_LABELS.map(k => [k, t(k)])), fit: f.thumb || f.role === 'layer' ? 0 : Math.max(320, st - (f.role === 'focus' ? 270 : 230)) });
+  }
   postTo(f, { type: 'theme', value: S.theme });
   postTo(f, { type: 'canvas', value: S.canvas === 'none' ? '' : S.canvas });
   postTo(f, { type: 'mode', value: f.thumb || TEAM ? '' : S.mode });
@@ -428,6 +453,8 @@ addEventListener('message', (e) => {
   if (d.type === 'ready') sendFrame(f);
   if (d.type === 'size') { f.h = d.h; if (f.role === 'layer') layoutCompare(); else layoutFrame(f); }
   if (d.type === 'error') { f.errors.push(d.message); updateBadges(fk); }
+  // an option changed inside a shell (terminal font, opacity…): it applies to every variant of the round, for comparison
+  if (d.type === 'shellOpts' && d.opts && typeof d.opts === 'object') { const rs = (S.rstate[f.r.id] ||= {}); rs.term = { ...(rs.term || {}), ...d.opts }; persist(); for (const o of liveFrames()) if (o.r.id === f.r.id) sendFrame(o); return; }
   if ((d.type === 'snapshot' || d.type === 'html') && snapWait.has(d.id)) { snapWait.get(d.id)(d); snapWait.delete(d.id); return; }
   if (f.thumb) return;
   if (d.type === 'picked') openPop(f, d);

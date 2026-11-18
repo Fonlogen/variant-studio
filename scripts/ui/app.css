@@ -486,3 +486,6 @@ body.insp-open #insp { display: flex; }
 .mact svg { width: 12px; height: 12px; }
 .mact.revise, .mact.remix, .mact.more { border-color: var(--acc); color: var(--acc); }
 .mact.choose { border-color: var(--good); background: var(--good); color: #0b2a1b; }
+/* design mode of the round (minimal: restyled with the new toolbar) */
+.vs-mode-badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: var(--acc-soft); color: var(--acc); white-space: nowrap; }
+.vs-mode-badge[hidden] { display: none; }

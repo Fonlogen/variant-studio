@@ -30,7 +30,7 @@ If the user did not ask for a visual preview, offer it in one sentence the first
      --group "Catalog / Product card" --title "Product card" \
      --question "Which card should we use in the category grid?" --variants a,b,c
    ```
-   For sections and pages always pass `--viewports` (see "Target viewport"). Iterations use `--parent <round id>` and inherit group, kind and viewports. Then fill `label` and `notes` for each variant in the printed `round.json`; add `knobs`, `states`, `content` or `checklist` when they help (`references/manifest.md`).
+   For sections and pages always pass `--viewports` (see "Target viewport"). For terminal UIs, phone apps, desktop apps and logos pass `--design tui|app|desktop|logo` (see "Design modes"). Iterations use `--parent <round id>` and inherit group, kind and viewports. Then fill `label` and `notes` for each variant in the printed `round.json`; add `knobs`, `states`, `content` or `checklist` when they help (`references/manifest.md`).
 
 3. **Write each variant** to `<round dir>/<id>.html` with your file-writing tool, following the `generation` block that `new` printed (see "Generation settings"). The gallery shows a placeholder until the file exists and live-reloads on save.
 
@@ -191,13 +191,50 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - `label` is 1–3 words naming the idea; `notes` is one sentence on the trade-off.
 - Write `title`, `question`, `context`, `label` and `notes` in the studio language: `new`, `present` and `status` print it as `studio_language` (the user picks it in Settings; it starts from their browser). The text inside the designs follows the product's own language.
 
+## Design modes
+
+`new … --design <mode>` sets what the round is designing; iterations inherit it from `--parent`. The top bar shows it as a badge, and `new` prints the mode's rules in `generation.design_rules`: follow them.
+
+| Mode | The variant is | The studio adds around it |
+|---|---|---|
+| `ui` (default) | A component, section or page (`--kind`). | Nothing. |
+| `component` | Same as `ui --kind component`. | Nothing. |
+| `tui` | One terminal screen of a text UI, drawn in HTML: monospace (`var(--vs-mono)`, a Nerd Font), transparent background, light text, no window or prompt. | A terminal window it owns: acrylic (default), tabs or tmux style; font (JetBrainsMono, FiraCode, Hack, CaskaydiaCove Nerd, or a local font), size, opacity, blur, wallpaper, and a prompt line the user can type into. |
+| `app` | One phone screen at the device's width. Pad the top with `var(--vs-safe-top)` and the bottom with `var(--vs-safe-bottom)`; `html[data-vs-platform=ios\|android]` tells the platform. No status bar, notch or home indicator. | A CSS phone: iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra, in realistic (default), flat or clay frames, with status bar, cut-out and home indicator. |
+| `desktop` | The client area of one desktop app window (fills `100vh`). `html[data-vs-os=mac\|windows\|linux]` tells the OS. No title bar or traffic lights. | A window frame: macOS, OS X Yosemite, Mac OS X Leopard, Mac OS X Aqua, Windows 11, 8/10, 7, XP, Ubuntu GNOME, KDE Plasma; window size 1024×768, 1280×800 (default), 1440×900, 1920×1080; optional desktop with taskbar or dock. |
+| `logo` | The mark as inline `<svg>` (the first one), optionally a wordmark, and an optional full-bleed app icon `<svg data-vs-icon>`. | Usage previews: browser tab favicon at real 16/32 px, iOS and Android icons, sizes 16–128 on light and dark, monochrome. |
+
+The user picks the terminal style, phone or window skin for the whole round from the top bar and per variant from the card's ⋯ menu; the choice for each variant comes back in the decision's `viewed_at.shell`. The shells never change your file: the variant stays static.
+
+Wallpaper for `tui` and `desktop`: `.variant-studio/wallpaper.(png|jpg|webp|svg)` in the project, else the bundled one.
+
+## Logo tools
+
+| Command | Output |
+|---|---|
+| `logo-export <round> <variant> [--out DIR] [--bg #fff]` | `logo.svg`, `icon.svg`, PNG 16…1024, `favicon.ico` (16/32/48), `apple-touch-icon.png`, `maskable-512.png`, `site.webmanifest`, `head-snippet.html`. Default folder `.variant-studio/exports/logo-<round>-<variant>/`. Rasterizes with Chrome, Edge or Chromium in headless mode (`chrome` in `~/.variant-studio/config.json` or `CHROME_PATH` to choose). Without a browser it writes the SVGs and answers `partial: true` with `tell_user`: the user clicks **Export logo set** in the card's ⋯ menu and the gallery uploads the PNGs. |
+| `palette <#hex> [--scheme analogous\|complementary\|triad\|mono]` | OKLCH scales 50…950 per colour plus a neutral, contrast ratios on white and black, WCAG-checked text pairs, and ready `css` tokens. |
+| `fonts [--query TEXT]` | Curated Google Fonts pairs (with the CSS URL for `head`) and the fonts installed on this machine. |
+| `image "<prompt>" [--size 1024x1024] [--out FILE] [--round ID]` | A raster image from the OpenAI Images API (`gpt-image-1`; `openai.image_model` in the config to change it), saved in `<round>/_images/`. Key from `OPENAI_API_KEY` or `openai.api_key` in the config; never print it. Use it for illustrations and textures, not for the logo itself (logos stay SVG). |
+
+## Export
+
+Each card's ⋯ menu and `export <round> <variant> --as single|split|shared [--out DIR]` write one variant as standalone files (default folder `.variant-studio/exports/<round>-<variant>-<as>/`):
+
+- `single`: one `.html` with everything inlined (styles, brand, local images and fonts as data URIs, remote fonts when reachable).
+- `split`: `index.html` + `style.css` + `script.js`.
+- `shared`: `index.html` + `style.css` (this variant) + `shared.css` (base, brand, `global.css`, `_shared.css`), for several pages that share one stylesheet.
+
+In the gallery `single` downloads one file; `split` and `shared` download a `.zip`. The exported page is the variant alone, without the terminal, phone or window around it.
+
 ## Commands
 
 | Command | Use |
 |---|---|
 | `start [--remote]` | Start or reuse the shared server and open this project's session. Prints `url`, `lan_url`, `pin`, `guest_pin` and `team_url` (the guest link on the local network: view and vote only). `--remote` also opens a public link (see `share`). |
 | `share [--stop]` | Open a temporary public link (Cloudflare tunnel) for this session and print `guest_url` for teammates outside the network (and `owner_url`, the user's own link); `--stop` closes it and changes the guest PIN, so every guest link stops working. Needs cloudflared, which the installer offers. |
-| `new <slug>` | Create a round (`--group`, `--title`, `--question`, `--kind`, `--viewports`, `--variants`, `--parent`). |
+| `new <slug>` | Create a round (`--group`, `--title`, `--question`, `--design`, `--kind`, `--viewports`, `--variants`, `--parent`). |
+| `export`, `logo-export`, `palette`, `fonts`, `image` | See "Export" and "Logo tools". |
 | `present` | Check the latest round, print the URL, wait for the decision. |
 | `wait` | Wait for the next decision. Exit 2 = still waiting: run it again. |
 | `decision` / `inbox` | Next queued decision without waiting / the whole queue. |
@@ -214,7 +251,7 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - Viewport per round, device frames, zoom (`+ − 0`), synced scrolling, variant theme `D`.
 - Select with `1–9`, rate, star into the shortlist, comment on or lock an element `C`, rewrite copy `E`, Inspector `I` (tune, fonts, tokens, checklist, accessibility audit, text edits).
 - Prompt bar: note `/`, quick chips and saved prompts, reference images (paste, drop, attach), dictation, `Ctrl/⌘ Enter` to send. Undo for 15 seconds after sending; revoke an approval later.
-- Each card's ⋯ menu: more like this, export as PNG, JPG, HTML with the user's changes or the original HTML, ask you for a React/Vue/Svelte/Tailwind component.
+- Each card's ⋯ menu: more like this, export as PNG, JPG, HTML with the user's changes or the original HTML, single HTML / HTML + CSS + JS / HTML + shared CSS, the logo set (logo rounds), the terminal style, phone or window for that variant, ask you for a React/Vue/Svelte/Tailwind component.
 - `Ctrl/⌘ K` command palette, Settings (language: English, Italian, Spanish, French, Russian; studio theme; Generation: mockup or prototype mode, subagents and their models; notifications, what is sent to you, brand palette), Team panel.
 
 ## Troubleshooting
@@ -228,5 +265,7 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 - **Phone or other computer cannot connect** → use `lan_url` on the same Wi-Fi; check the computer's firewall allows the port. Outside the network use `share`. For remote machines and containers: `start --url-host <host>` or forward the port; otherwise `build`.
 - **`present` says "Mockup mode" with `violations`** → the variants contain scripts, event handlers or project files. Remove them; do not switch mode unless the user asked for working prototypes.
 - **Blank variant** → `STUDIO errors`; look for an unclosed tag or an asset path that should be `/p/…`.
+- **`logo-export` answered `partial: true`** → no Chrome/Edge found. Relay `tell_user`: ⋯ → Export logo set in the gallery writes the PNGs and favicon into the same folder.
+- **`image` fails** → `no-key`: ask the user to set `OPENAI_API_KEY`; `invalid_api_key` / 401: the key is wrong. Never echo the key.
 - **Wrong preview height in a full document** → avoid `height: 100vh` on `body` in component and section rounds.
 - **The user sees mobile layouts on desktop (or the reverse)** → the round has no `viewports` or the wrong ones. Set `"viewports"` in `round.json` to the real target.

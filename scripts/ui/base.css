@@ -63,3 +63,14 @@ html[data-vs-kind="page"] #vs-root { width: 100%; min-height: 100vh; }
 .wf-line { height: 10px; border-radius: 5px; background: #e4e4ea; margin: 6px 0; }
 .wf-line.short { width: 40%; } .wf-line.mid { width: 70%; }
 .wf-img { aspect-ratio: 4/3; border-radius: 8px; background: linear-gradient(135deg, #e9e9ef, #d9d9e2); }
+
+/* ---- design modes: the studio's shell (terminal, phone) wraps these ---- */
+html[data-vs-kind="screen"] #vs-root { width: 100%; }
+html[data-vs-design="tui"] { --vs-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #e6e9f2; font: 13px/1.5 var(--vs-mono); }
+/* standalone (exported) screens get the terminal colour; inside the studio the shell makes it transparent */
+html[data-vs-design="tui"] { background: #161826; } html[data-vs-design="tui"] body { background: transparent; }
+html[data-vs-design="app"] { --vs-safe-top: 0px; --vs-safe-bottom: 0px; }
+html[data-vs-design="app"] #vs-root { min-height: 100vh; }
+html[data-vs-design="app"] body { background: var(--vs-bg); }
+html[data-vs-design="desktop"] #vs-root { min-height: 100vh; }
+html[data-vs-design="desktop"] body { background: var(--vs-bg); }

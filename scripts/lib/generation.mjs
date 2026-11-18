@@ -35,6 +35,15 @@ const MODE_RULES = {
   mockup: 'MOCKUP MODE (default). Each variant is a static visual mockup, not a working app. Write exactly one HTML fragment per variant (<id>.html), plus an optional _shared.css. No JavaScript at all: no inline <script>, no on* attributes, no .js files, no state logic, routing, fetch, form handling, storage or data generators. No extra pages, components, package.json, build setup or folders. Buttons, links and inputs are inert visuals. Show other states with the round\'s `states`/`content` lists and CSS (html[data-vs-state="loading"] …), never with code. Spend the effort on visual quality, not behaviour. `present` refuses a round that breaks these rules. Only if the user explicitly asks for working prototypes, run `settings --mode prototype` first.',
   prototype: 'PROTOTYPE MODE (the user turned it on). Variants may be interactive: inline scripts, working tabs, menus, forms with validation, fake data. Keep each variant one self-contained file in the round folder (shared helpers go in _*.js / _*.css). Do not scaffold a project, add dependencies or touch the app code.',
 };
+// how to write a variant in each design mode (round.json `design`); printed by `new`
+export const DESIGN_RULES = {
+  ui: 'UI MODE. A piece of interface: component, section or page, following `kind` and `viewports`.',
+  component: 'COMPONENT MODE. One component centred on a neutral canvas; give it a realistic fixed width (it grows to fit in height). Show variants of states side by side with .vs-states when useful.',
+  tui: 'TUI MODE. Each variant is ONE terminal screen of a text UI (an htop / lazygit / k9s style app), drawn with HTML. The studio wraps it in a terminal window it owns (title bar, font, opacity, blur, wallpaper and a typable prompt line under your screen): do NOT draw a window, title bar, tabs, wallpaper or shell prompt yourself. Fill the width (the screen is ~100 columns wide); use `font-family: var(--vs-mono)` (Nerd Font, so Nerd icon glyphs such as &#xf07b; &#xe725; work) and size text in `em` (the shell sets the base size). Use a transparent background (the user tunes opacity/blur) and set text colours explicitly (light on dark). Box-drawing characters, `white-space: pre`, borders and a 16-colour palette as CSS tokens (--tui-fg, --tui-accent…). No scripts: the shell provides the typing.',
+  app: 'APP MODE. Each variant is ONE phone app screen. The studio renders it inside a phone frame it owns (iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra; the user switches skin and frame style), at the device\'s logical size (e.g. 402×874). Do NOT draw a device frame, status bar, notch or home indicator. Make the root fill the screen (`min-height: 100vh`), pad the top by `var(--vs-safe-top)` and the bottom by `var(--vs-safe-bottom)` (status bar and home indicator / gesture bar are drawn over those areas), and lay out fluidly from 360 to 412 px wide. `html[data-vs-platform="ios"|"android"]` lets you adapt controls per platform. Body text ≥ 15px, contrast ≥ 4.5:1, touch targets ≥ 44px.',
+  desktop: 'DESKTOP MODE. Each variant is the client area of ONE desktop application window (an editor, a settings app, a file manager…). The studio draws the window frame it owns (title bar and caption buttons of Windows XP / 7 / 10 / 11, Ubuntu GNOME, KDE Plasma or macOS; the user switches skin, window size 1024×768 to 1920×1080, default 1280×800, and can show the matching desktop, taskbar or dock). Do NOT draw a title bar, window buttons, taskbar or wallpaper. Fill the area (`min-height: 100vh`, no page scroll unless the app scrolls a pane), lay out for 1024–1920 px, and use `html[data-vs-os="windows"|"linux"|"mac"]` if you want platform-native controls. A toolbar, sidebar and status bar inside the window are yours.',
+  logo: 'LOGO MODE. Each variant is a logo: put the mark as the FIRST inline <svg> in the file (self-contained: viewBox, fills/strokes as attributes or an inner <style>, no external CSS classes, no <image>, no text that needs a web font: convert lettering to paths or use generic font stacks). Optionally add the wordmark lock-up after it, and a second <svg data-vs-icon> that is the full-bleed square app icon (its own background). The studio shows usage previews around it: favicon in a browser tab at 16/32 px, iOS and Android icons with their masks, light/dark, small/large and monochrome, so the mark must survive 16 px and one colour. Tools: `logo-export` (SVG, PNG 16…1024, favicon.ico, apple-touch-icon, maskable), `palette <color>`, `fonts`, `image "<prompt>"` for raster references.',
+};
 function modelBrief(s, h) {
   const cc = s.cc_subagent_model, cdx = s.cdx_subagent_model;
   const ccText = cc === 'auto'
@@ -49,9 +58,9 @@ function modelBrief(s, h) {
   return { claude_code: ccText, codex: cdxText, other: 'Use your harness\'s subagent tool; pick the model yourself.' };
 }
 // what `new` (and `settings`) tell the agent about how to build the round
-export function generationBrief(P, { dir, ids, agent } = {}) {
+export function generationBrief(P, { dir, ids, agent, design } = {}) {
   const s = settings(P);
-  const out = { mode: s.mode, mode_rules: MODE_RULES[s.mode] };
+  const out = { mode: s.mode, mode_rules: MODE_RULES[s.mode], ...(design ? { design, design_rules: DESIGN_RULES[design] } : {}) };
   if (!s.subagents) { out.subagents = { enabled: false, rule: 'Write the variants yourself, one after another. Do not spawn subagents for them.' }; return out; }
   const h = harness(agent);
   out.subagents = {
@@ -61,7 +70,7 @@ export function generationBrief(P, { dir, ids, agent } = {}) {
     steps: [
       'You orchestrate. First decide one distinct idea per variant, fill label and notes in round.json, and write _shared.css (tokens, fonts) if the variants share a look.',
       'Spawn one subagent per variant, all in parallel (several spawn calls in the same turn). Each one owns exactly one file.',
-      'Brief each subagent with: its absolute file path, the round question, kind and viewports, the idea for its variant, the shared tokens/brand variables to use, the mode_rules text verbatim, and: "Write only this file. Do not create other files, do not run studio.mjs, do not present."',
+      'Brief each subagent with: its absolute file path, the round question, kind, viewports and design_rules verbatim, the idea for its variant, the shared tokens/brand variables to use, the mode_rules text verbatim, and: "Write only this file. Do not create other files, do not run studio.mjs, do not present."',
       'When every subagent is done, check the files exist, run `errors`, fix what broke, then run `present` yourself.',
     ],
     ...(dir && ids ? { assignments: ids.map((v) => ({ variant: v, file: path.join(dir, `${v}.html`) })) } : {}),

@@ -4,11 +4,15 @@ import path from 'node:path';
 import { readJSON, writeJSON, print, sleep, now, pidAlive, openBrowser } from './util.mjs';
 import { VERSION, SCRIPTS, userConfig, saveUserConfig, studioLang, langNote } from './config.mjs';
 import { project, ensureDirs, ensureGitignore, setAgent } from './project.mjs';
-import { LETTERS, listRounds, loadRound, prettyId, latestRoundId, nextRoundId, pendingEntries, recentErrors, publicDecision } from './rounds.mjs';
+import { LETTERS, DESIGNS, SHELLED, listRounds, loadRound, prettyId, latestRoundId, nextRoundId, pendingEntries, recentErrors, publicDecision } from './rounds.mjs';
 import { formatDecision, nextStep, waitLoop } from './decisions.mjs';
 import { MODES, SUB_MODELS, cleanSettings, settings, generationBrief, mockupViolations } from './generation.mjs';
 import { liveServer, control, ensureSession, findSession } from './client.mjs';
-import { buildGallery } from './export.mjs';
+import { buildGallery, exportVariant, EXPORT_AS } from './export.mjs';
+import { extractSvgs, findChrome, rasterizeWithChrome, writeLogoSet } from './logo.mjs';
+import { palette, PALETTE_SCHEMES } from './palette.mjs';
+import { fontsReport } from './fonts.mjs';
+import { generateImage } from './imagegen.mjs';
 import { serve } from './server.mjs';
 
 function parseArgs(argv) {
@@ -125,12 +129,17 @@ function newRound() {
   const parentManifest = args.parent ? readJSON(path.join(P.rounds, String(args.parent), 'round.json'), {}) || {} : {};
   const group = args.group ? String(args.group) : parentManifest.group ? [parentManifest.group, parentManifest.subgroup].filter(Boolean).join(' / ') : '';
   const ids = args.variants ? String(args.variants).split(',').map((s) => s.trim()).filter(Boolean) : LETTERS.slice(0, count || 3);
+  const design = args.design ? String(args.design).toLowerCase() : DESIGNS.includes(parentManifest.design) ? parentManifest.design : 'ui';
+  if (!DESIGNS.includes(design)) { fs.rmSync(dir, { recursive: true, force: true }); fail({ message: `unknown --design ${design}: use ${DESIGNS.join('|')}` }); }
+  // shelled designs size themselves inside the card; component is today's centred component
+  const kind = SHELLED.includes(design) || design === 'component' ? 'component' : args.kind || parentManifest.kind || 'component';
   const manifest = {
     ...(group ? { group } : {}),
     title: args.title || slug.replace(/[-_]/g, ' '),
     question: args.question || '',
     // iterations keep the parent's kind and target viewports unless told otherwise: losing them made desktop rounds render as mobile (and vice versa)
-    kind: args.kind || parentManifest.kind || 'component',
+    kind,
+    design,
     ...(args.viewports ? { viewports: String(args.viewports).split(',').map((v) => v.trim()) } : parentManifest.viewports ? { viewports: parentManifest.viewports } : {}),
     ...(args.parent ? { parent: args.parent } : {}),
     head: args.head ? String(args.head).split(',') : [],
@@ -141,12 +150,13 @@ function newRound() {
   setAgent(P, 'working', { round: id });
   const w = [];
   if (!group) w.push('No --group given: the round will appear under "Ungrouped". Run `groups` and pass --group "Area / Item".');
+  if (args.kind && kind !== args.kind) w.push(`--kind ${args.kind} ignored: design ${design} renders as a component.`);
   if (manifest.kind !== 'component' && !manifest.viewports) w.push(`No --viewports for a ${manifest.kind}: it will be shown at laptop width (1280). Pass --viewports with the target the user asked for (e.g. laptop, or mobile, or laptop,mobile) and design for that target.`);
-  print({ type: 'round-created', id, dir, group: group || null, ...(w.length ? { warning: w.join(' ') } : {}), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), generation: generationBrief(P, { dir, ids, agent: args.agent }), then: 'Follow `generation` (mode rules and subagents), write every variant file, fill label/notes in round.json, then run `present`.' });
+  print({ type: 'round-created', id, dir, group: group || null, ...(w.length ? { warning: w.join(' ') } : {}), manifest: path.join(dir, 'round.json'), ...langNote(), write_variants_to: ids.map((v) => path.join(dir, `${v}.html`)), design, generation: generationBrief(P, { dir, ids, agent: args.agent, design }), then: 'Follow `generation` (mode rules and subagents), write every variant file, fill label/notes in round.json, then run `present`.' });
 }
 
 function list() {
-  print(listRounds(P).map((id) => loadRound(P, id)).map((r) => ({ id: r.id, group: [r.group, r.subgroup].filter(Boolean).join(' / ') || null, title: r.title, kind: r.kind, parent: r.parent, variants: r.variants.length, decision: r.decision ? `${r.decision.action}:${(r.decision.selected || []).join('+')}` : null, approved: r.decision?.approved?.variant || null })));
+  print(listRounds(P).map((id) => loadRound(P, id)).map((r) => ({ id: r.id, group: [r.group, r.subgroup].filter(Boolean).join(' / ') || null, title: r.title, kind: r.kind, design: r.design, parent: r.parent, variants: r.variants.length, decision: r.decision ? `${r.decision.action}:${(r.decision.selected || []).join('+')}` : null, approved: r.decision?.approved?.variant || null })));
 }
 function groups() {
   const tree = {};
@@ -187,7 +197,7 @@ async function open() {
 function help() {
   process.stdout.write(`Variant Studio ${VERSION}
   start     start the shared server (or reuse it) and open a session for this project   --project DIR --open --remote --foreground --port N --host H --url-host H --idle MIN
-  new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --kind component|section|page --viewports laptop,mobile --variants a,b,c --parent ID
+  new       scaffold a round: new <slug> --group "Area / Item" --title T --question Q --design ui|component|tui|app|desktop|logo --kind component|section|page --viewports laptop,mobile --variants a,b,c --parent ID
   present   hand the latest round to the user and wait for the decision   --round ID --timeout SEC
   wait      wait for the next decision (exit 2 = still waiting: run it again)   --round ID --timeout SEC
   decision  print the next or latest decision without waiting   --round ID
@@ -201,6 +211,11 @@ function help() {
   build     write a self-contained gallery.html        --out FILE --round ID --team
   demo      add a demo round (product card)
   share     share this session outside your network (Cloudflare tunnel, guests can view and vote)   --stop
+  export    one variant as files   export <round> <variant> --as single|split|shared --out DIR
+  logo-export  logo set of a variant: SVG, PNG 16…1024, favicon.ico, apple-touch-icon, maskable   logo-export <round> <variant> --out DIR --bg #fff
+  palette   OKLCH palette with contrast ratios   palette <#hex> --scheme analogous|complementary|triad|mono
+  fonts     curated Google Fonts pairs + fonts installed here   --query TEXT
+  image     raster image from the OpenAI Images API into the round   image "<prompt>" --size 1024x1024 --out FILE --round ID
   stop      close this project's session (the server exits when none is left)   --all lists every session; --all --confirm stops them all
 `);
 }
@@ -237,6 +252,53 @@ async function share() {
   fail({ state: st.state, message: why || st.error || 'the tunnel did not start' });
 }
 
+// ---------- design tools ----------
+function variantArgs(cmd) {
+  const [roundArg, vid] = [args._[1], args._[2]];
+  const id = roundArg === 'latest' || !roundArg ? latestRoundId(P) : listRounds(P).find((x) => x === roundArg || parseInt(x, 10) === Number(roundArg));
+  const r = id && loadRound(P, id);
+  const v = r && r.variants.find((x) => x.id === vid);
+  if (!v) fail({ message: `usage: ${cmd} <round> <variant> (round id, number or "latest"; variant id such as a)` });
+  if (!v.ready || !v.file) fail({ message: `variant ${vid} of ${id} has no file yet` });
+  return { r, v, file: path.join(P.rounds, id, v.file) };
+}
+function logoExport() {
+  const { r, v, file } = variantArgs('logo-export');
+  const { mark, icon } = extractSvgs(fs.readFileSync(file, 'utf8'));
+  if (!mark) fail({ message: `no inline <svg> in ${file}: in logo rounds the mark must be the first <svg> of the variant` });
+  const dir = path.resolve(args.out || path.join(P.home, 'exports', `logo-${r.id}-${v.id}`));
+  const chrome = findChrome();
+  const pngs = chrome ? rasterizeWithChrome(chrome, mark, icon, { bg: args.bg }) : null;
+  const files = writeLogoSet(dir, { mark, icon, pngs: pngs || {} }).map((f) => path.basename(f));
+  if (pngs) return print({ type: 'logo-export', round: r.id, variant: v.id, dir, rasterizer: path.basename(chrome), files });
+  print({ type: 'logo-export', round: r.id, variant: v.id, dir, rasterizer: null, files, partial: true,
+    tell_user: `Only the SVG was written: no Chrome, Chromium or Edge found to rasterize it. In the gallery, open the ⋯ menu of variant ${v.id.toUpperCase()} and click "Export logo set": the browser renders the PNGs and favicon.ico into ${dir}.` });
+}
+function paletteCmd() {
+  try { print(palette(args._[1] || args.base, String(args.scheme || 'analogous'))); }
+  catch (e) { fail({ message: `${e.message}. usage: palette <#hex> --scheme ${PALETTE_SCHEMES.join('|')}` }); }
+}
+async function imageCmd() {
+  const prompt = args._.slice(1).join(' ') || args.prompt;
+  if (!prompt) fail({ message: 'usage: image "<prompt>" [--size 1024x1024] [--out FILE] [--round ID]' });
+  const id = args.round ? String(args.round) : latestRoundId(P);
+  if (!args.out && !id) fail({ message: 'no round to save into: pass --round or --out' });
+  try {
+    const out = await generateImage({ prompt, size: String(args.size || '1024x1024'), out: args.out, dir: id && path.join(P.rounds, id) });
+    print({ type: 'image', ...out, ...(id && !args.out ? { round: id, use_in_variant: path.relative(path.join(P.rounds, id), out.file).split(path.sep).join('/') } : {}) });
+  } catch (e) { fail({ code: e.code || undefined, status: e.status || undefined, message: e.message }); }
+}
+async function exportCmd() {
+  const { r, v } = variantArgs('export');
+  const as = String(args.as || 'single');
+  if (!EXPORT_AS.includes(as)) fail({ message: `--as must be ${EXPORT_AS.join('|')}` });
+  const out = await exportVariant(P, r.id, v.id, as);
+  const dir = path.resolve(args.out || path.join(P.home, 'exports', as === 'single' ? '' : out.name));
+  fs.mkdirSync(dir, { recursive: true });
+  const files = Object.entries(out.files).map(([name, body]) => { const f = path.join(dir, name); fs.writeFileSync(f, body); return f; });
+  print({ type: 'export', round: r.id, variant: v.id, as, dir, files, note: as === 'single' ? 'One self-contained file: styles, brand, fonts and images inlined (remote ones kept as URLs when unreachable).' : undefined });
+}
+
 export async function run(argv) {
   args = parseArgs(argv);
   P = project(args.project || process.env.VARIANT_STUDIO_PROJECT || process.cwd());
@@ -246,6 +308,7 @@ export async function run(argv) {
     new: newRound,
     settings: settingsCmd,
     errors: () => print(recentErrors(P, args.round)),
+    'logo-export': logoExport, palette: paletteCmd, fonts: () => print(fontsReport(args.query === true ? '' : args.query || args._[1])), image: imageCmd, export: exportCmd,
   };
   const cmd = args._[0] || 'help';
   if (!commands[cmd]) { help(); process.exit(1); }

@@ -112,7 +112,7 @@ export function formatDecision(P, e, rest) {
   const errs = recentErrors(P, d.round);
   const out = { type: 'decision', ...d, next_step: nextStep(P, d), ...(errs.length ? { render_errors: errs } : {}) };
   const m = readJSON(path.join(P.rounds, String(d.round || '').split('/')[0], 'round.json'), {}) || {};
-  out.design_target = { kind: m.kind || 'component', viewports: m.viewports || (m.kind && m.kind !== 'component' ? ['laptop'] : ['auto']) };
+  out.design_target = { kind: m.kind || 'component', design: m.design || 'ui', viewports: m.viewports || (m.kind && m.kind !== 'component' ? ['laptop'] : ['auto']) };
   const seen = d.viewed_at?.viewport;
   if (seen && seen !== 'auto' && !out.design_target.viewports.includes(seen)) out.next_step += ` Note: the user looked at the variants at "${seen}" width, but the design target is ${out.design_target.viewports.join(', ')}. Keep designing for the target; only treat ${seen} as a responsive check unless the note asks to change the target.`;
   delete out.consumed; delete out.hold_until;

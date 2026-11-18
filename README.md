@@ -152,6 +152,9 @@ Every round is kept, grouped by product area and subject, with iterations nested
 | | |
 |---|---|
 | Scope | Components, sections and full pages, each with its own preview layout |
+| Design modes | `ui`, `component`, `tui` (terminal window: acrylic, tabs or tmux; Nerd Fonts, opacity, blur, wallpaper, a prompt you can type in), `app` (CSS phones: iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra; realistic, flat or clay frames), `desktop` (window frames: macOS, Yosemite, Leopard, Aqua, Windows 11 / 10 / 7 / XP, GNOME, KDE; sizes up to 1920×1080; optional desktop), `logo` (favicon, iOS and Android icons, sizes, monochrome). Styles for the whole round or per variant |
+| Logo tools | `logo-export` (SVG, PNG 16…1024, favicon.ico, apple-touch-icon, maskable, manifest), `palette` (OKLCH scales with contrast ratios), `fonts` (curated pairs + local fonts), `image` (OpenAI gpt-image-1) |
+| Export | Any variant as one self-contained HTML, HTML + CSS + JS, or HTML + shared CSS (zip from the gallery, folder from the CLI) |
 | Views | Grid · Full screen · List · Compare (swipe, overlay, tournament, before/after) · Overview · Version tree · Variants map |
 | Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all; tall variants scroll inside their card (or switch to full height) |
 | Feedback | Selection, 👍/👎, notes per variant, comments on single elements, locked elements, inline copy edits, token overrides, checklist, reference images, screenshots |
