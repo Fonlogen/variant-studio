@@ -199,12 +199,12 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 |---|---|---|
 | `ui` (default) | A component, section or page (`--kind`). | Nothing. |
 | `component` | Same as `ui --kind component`. | Nothing. |
-| `tui` | One terminal screen of a text UI, drawn in HTML: monospace (`var(--vs-mono)`, a Nerd Font), transparent background, light text, no window or prompt. | A terminal window it owns: acrylic (default), tabs or tmux style; font (JetBrainsMono, FiraCode, Hack, CaskaydiaCove Nerd, or a local font), size, opacity, blur, wallpaper, and a prompt line the user can type into. |
+| `tui` | One terminal screen of a text UI, drawn in HTML: monospace (`var(--vs-mono)`, a Nerd Font), transparent background, light text, no window or prompt. | A terminal window it owns: acrylic (default), tabs or tmux style, or an OS default (plain black, Ubuntu GNOME Terminal, CMD, PowerShell, Windows Terminal) with that shell's prompt and the user's own user and host names; font (JetBrainsMono, FiraCode, Hack, CaskaydiaCove Nerd, or a local font), size, opacity, blur, wallpaper, and a prompt line the user can type into. |
 | `app` | One phone screen at the device's width. Pad the top with `var(--vs-safe-top)` and the bottom with `var(--vs-safe-bottom)`; `html[data-vs-platform=ios\|android]` tells the platform. No status bar, notch or home indicator. | A CSS phone: iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra, in realistic (default), flat or clay frames, with status bar, cut-out and home indicator. |
 | `desktop` | The client area of one desktop app window (fills `100vh`). `html[data-vs-os=mac\|windows\|linux]` tells the OS. No title bar or traffic lights. | A window frame: macOS, OS X Yosemite, Mac OS X Leopard, Mac OS X Aqua, Windows 11, 8/10, 7, XP, Ubuntu GNOME, KDE Plasma; window size 1024×768, 1280×800 (default), 1440×900, 1920×1080; optional desktop with taskbar or dock. |
 | `logo` | The mark as inline `<svg>` (the first one), optionally a wordmark, and an optional full-bleed app icon `<svg data-vs-icon>`. | Usage previews: browser tab favicon at real 16/32 px, iOS and Android icons, sizes 16–128 on light and dark, monochrome. |
 
-The user picks the terminal style, phone or window skin for the whole round from the top bar and per variant from the card's ⋯ menu; the choice for each variant comes back in the decision's `viewed_at.shell`. The shells never change your file: the variant stays static.
+The user picks the terminal style, phone or window skin for the whole round from the top bar button (a popover of grouped options) and per variant from the card's ⋯ menu (**Shell style…**); the choice for each variant comes back in the decision's `viewed_at.shell`. The shells never change your file: the variant stays static.
 
 Wallpaper for `tui` and `desktop`: `.variant-studio/wallpaper.(png|jpg|webp|svg)` in the project, else the bundled one.
 

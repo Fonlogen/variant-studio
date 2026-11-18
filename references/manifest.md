@@ -59,9 +59,9 @@ Chosen by the user (for the round, or per variant), not written in `round.json`.
 
 | Mode | Keys |
 |---|---|
-| `tui` | `shell`: `acrylic` \| `tabs` \| `tmux`; `term`: `font`, `size`, `opacity`, `blur`, `wall` set inside the terminal. |
+| `tui` | `shell`: `acrylic` \| `tabs` \| `tmux` (styles), `plain` \| `ubuntu` \| `cmd` \| `powershell` \| `wt` (OS defaults); `term`: `font`, `size`, `opacity`, `blur`, `wall` set inside the terminal (opacity, blur and wallpaper do not apply to `plain`, `cmd`, `powershell`). Prompts show the computer's user and host to the owner (`tui.user` / `tui.host` in `config.json` override them), `user` / `host` to guests and in exports. |
 | `app` | `skin`: `ip8`, `ipx`, `ip18`, `px3`, `px6`, `px8`, `px10p`, `s25`, `s25u`; `frame`: `real` \| `flat` \| `clay`. |
-| `desktop` | `skin`: `mac`, `yosemite`, `leopard`, `aqua`, `win11`, `win10`, `win7`, `xp`, `gnome`, `kde`; `win`: `1024x768` \| `1280x800` \| `1440x900` \| `1920x1080`; `desk`: `1` shows the taskbar or dock. |
+| `desktop` | `skin`: `mac`, `yosemite`, `leopard`, `aqua`, `win11`, `win10`, `win7`, `xp`, `gnome`, `kde`; `win`: `1024x768` \| `1280x800` \| `1440x900` \| `1920x1080`; `desk`: `1` shows the taskbar or dock (`0` hides it for one variant). |
 
 Variables the shells set in the variant: `--vs-mono` and the base font size (tui), `--vs-safe-top` / `--vs-safe-bottom` and `data-vs-platform` (app), `data-vs-os` (desktop).
 

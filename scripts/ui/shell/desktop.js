@@ -27,7 +27,7 @@
 
   const dk = S.el('div', 'dk'), fit = S.el('div', 'fit'), scr = S.el('div', 'scr'), panels = S.el('div'), win = S.el('div', 'win'), tb = S.el('div', 'tb'), client = S.el('div', 'client'), cap = S.el('div', 'cap');
   client.append(S.makeInner()); win.append(tb, client); scr.append(panels, win); fit.append(scr); dk.append(fit, cap); S.root.append(dk);
-  const pick = () => ({ sk: SKINS[S.opts.skin] ? S.opts.skin : 'mac', size: SIZES.includes(S.opts.win) ? S.opts.win : '1280x800', desk: !!S.opts.desk });
+  const pick = () => ({ sk: SKINS[S.opts.skin] ? S.opts.skin : 'mac', size: SIZES.includes(S.opts.win) ? S.opts.win : '1280x800', desk: !!S.opts.desk && S.opts.desk !== '0' });
   const osVar = () => { const d = S.innerDoc(); if (d?.documentElement) d.documentElement.dataset.vsOs = SKINS[pick().sk].os; };
   let built = '';
   S.render = () => {

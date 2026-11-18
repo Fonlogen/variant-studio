@@ -318,7 +318,7 @@ function setShell(r, patch, vid) {
   persist(); broadcastFrames();
 }
 const SHELL_LABELS = ['Font', 'Font on this computer…', 'Font family name', 'Opacity', 'Blur', 'Wallpaper', 'Search', 'File', 'Edit', 'View', 'Window', 'Help', 'New tab', 'Browser tab', 'Sizes', 'Monochrome',
-  'No inline <svg> found in this variant: the usage previews need the mark as an <svg> element.', 'Home button', 'Notch', 'Dynamic Island', 'Bezels', 'Punch-hole', 'Squarer corners', 'Phone'];
+  'No inline <svg> found in this variant: the usage previews need the mark as an <svg> element.', 'Home button', 'Notch', 'Dynamic Island', 'Bezels', 'Punch-hole', 'Squarer corners', 'Phone', 'Command Prompt'];
 
 // ---------------- frames ----------------
 const frames = new Map(); // key -> frame record

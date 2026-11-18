@@ -10,7 +10,7 @@ import { project, ensureDirs, agentStatus, sessionPins, rotateGuestPin, writeNot
 import { SAFE, listRounds, loadRound, pendingEntries, saveImage, snapshot } from './rounds.mjs';
 import { receiveDecision, cancelDecision } from './decisions.mjs';
 import { renderVariant } from './render.mjs';
-import { renderPreview, wallpaperFile } from './shells.mjs';
+import { renderPreview, wallpaperFile, termWho } from './shells.mjs';
 import { exportVariant, EXPORT_AS } from './export.mjs';
 import { zip } from './zip.mjs';
 import { writeLogoSet, extractSvgs } from './logo.mjs';
@@ -339,7 +339,7 @@ export async function serve(o = {}) {
       const [, , roundId, file] = p.split('/');
       if (!SAFE.test(roundId || '') || !/^[\w.-]+\.html?$/i.test(file || '')) { res.writeHead(400); return res.end(); }
       if (!fs.existsSync(path.join(P.rounds, roundId, file))) return html(res, 404, '<!doctype html><body style="font:14px system-ui;color:#888;display:grid;place-items:center;height:90vh">Not generated yet…</body>');
-      return html(res, 200, renderPreview(P, roundId, file, { prefix: '/' + pin, raw: u.searchParams.get('raw') === '1' }));
+      return html(res, 200, renderPreview(P, roundId, file, { prefix: '/' + pin, raw: u.searchParams.get('raw') === '1', who: role === 'owner' && !viaTunnel(req) ? termWho() : null }));
     }
     if (p.startsWith('/r/')) {
       const rest = p.slice(3);
