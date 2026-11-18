@@ -1,8 +1,8 @@
-/* Terminal shell: acrylic window (default), tabs, tmux. The terminal is the point: chrome stays slim. */
+/* Terminal shell: acrylic window (default), tabs, tmux, and the OS defaults (plain, Ubuntu, CMD, PowerShell, Windows Terminal). The terminal is the point: chrome stays slim. */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; background: transparent; }
 body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
-#vs-shell { --mono: var(--vs-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); --op: .58; --blur: 24px; --fs: 13px;
+:where(#vs-shell) { --mono: var(--vs-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); --op: .58; --blur: 24px; --fs: 13px;
   --fg: #e6e9f2; --dim: #9aa0b4; --line: rgba(255,255,255,.08); --acc: #c6a6ff; --acc2: #3a3f62; --ok: #8fdca6; --win: 22, 24, 38; }
 .st { position: relative; padding: 14px; border-radius: 14px; overflow: hidden; background: var(--wall) center / cover no-repeat, #1b1d3a; }
 .st::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 120%, rgba(10,10,25,.45), transparent 60%); }
@@ -71,3 +71,51 @@ body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -
 .s-tmux { --acc: #9ece6a; --acc2: #232834; --ok: #9ece6a; --win: 14, 16, 20; --fg: #d4d8e0; --dim: #8a91a0; }
 .s-tmux .win { border-radius: 8px; border-color: #2c303a; }
 .s-tmux .seg.s1 { color: #0e1014; }
+
+/* OS shells: each one's default look. Opaque ones (.opq) fill the card, no wallpaper around them */
+.top[hidden] { display: none; }
+.opq .st { padding: 0; border-radius: 0; background: none; }
+.opq .st::after { display: none; }
+.typed .err { color: var(--err, inherit); background: var(--err-bg, none); }
+.wic { width: 16px; height: 14px; display: grid; place-items: center; border-radius: 2px; background: #1e1e1e; border: 1px solid #5a5a5a; color: #e8e8e8; font: 700 7.5px/1 Consolas, "Cascadia Mono", monospace; }
+.cap { gap: 0; align-self: stretch; }
+.cap i { width: 46px; height: auto; border-radius: 0; }
+.cap svg { width: 10px; height: 10px; stroke-width: 1; }
+
+.s-plain { --fg: #c7c7c7; --dim: #8a8a8a; --line: #1f1f1f; --ok: #c7c7c7; --acc: #c7c7c7; --win: 0, 0, 0; }
+.s-plain .win { border-radius: 0; border: 1px solid #2b2b2b; box-shadow: none; }
+
+.s-ubuntu { --fg: #ffffff; --dim: #cbb7c6; --line: rgba(255,255,255,.1); --ok: #ffffff; --acc: #e95420; --win: 48, 10, 36; }
+.s-ubuntu .win { border-radius: 12px 12px 6px 6px; overflow: hidden; border: 1px solid rgba(0,0,0,.55); box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 18px 48px -12px rgba(0,0,0,.6); }
+.s-ubuntu .top { height: 42px; padding: 0 7px; gap: 4px; background: #303030; color: #fff; border-bottom: 1px solid #1d1d1d; font: 700 13px Ubuntu, "Ubuntu Sans", Cantarell, system-ui, sans-serif; }
+.s-ubuntu .hb { display: flex; gap: 4px; }
+.s-ubuntu .hb i { width: 34px; height: 30px; display: grid; place-items: center; border-radius: 6px; background: rgba(255,255,255,.08); color: #fff; }
+.s-ubuntu .hb svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 1.3; fill: none; }
+.s-ubuntu .yaru { display: flex; gap: 10px; margin-left: 8px; }
+.s-ubuntu .yaru i { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; }
+.s-ubuntu .yaru i:last-child { background: #e95420; }
+.s-ubuntu .yaru svg { width: 8px; height: 8px; stroke: currentColor; stroke-width: 1.6; fill: none; }
+.s-ubuntu .pu { color: #8ae234; }
+.s-ubuntu .pd { color: #729fcf; }
+
+.s-cmd, .s-powershell { --line: rgba(255,255,255,.1); }
+.s-cmd { --fg: #cccccc; --dim: #8b8b8b; --ok: #cccccc; --acc: #cccccc; --win: 12, 12, 12; }
+.s-powershell { --fg: #eeedf0; --dim: #a7b4cd; --ok: #eeedf0; --acc: #eeedf0; --win: 1, 36, 86; --err: #ff0000; --err-bg: #000; --warn: #ffff00; }
+.s-cmd .win, .s-powershell .win { border-radius: 0; border: 1px solid #5b5b5b; box-shadow: none; }
+.s-cmd .top, .s-powershell .top { height: 30px; padding: 0 0 0 8px; gap: 8px; background: #fff; color: #000; border-bottom: 0; font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+.s-cmd .ttl, .s-powershell .ttl { text-align: left; font-weight: 400; }
+.s-cmd .wb, .s-powershell .wb { color: #000; }
+.s-cmd .prompt, .s-powershell .prompt { margin-top: 2px; }
+
+.s-wt { --fg: #cccccc; --dim: #9d9d9d; --line: rgba(255,255,255,.08); --ok: #cccccc; --acc: #cccccc; --win: 12, 12, 12; --err: #e74856; }
+.s-wt .win { border-radius: 8px; overflow: hidden; border: 1px solid #3c3c3c; box-shadow: 0 22px 56px -14px rgba(0,0,0,.6); }
+.s-wt .top.tabs { height: 40px; padding: 0 0 0 8px; gap: 2px; align-items: flex-end; border-radius: 0; border-bottom: 0; background: linear-gradient(180deg, #2c2c2e, #202020); font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+.s-wt .tab { min-width: 200px; max-width: 240px; height: 32px; padding: 0 8px 0 12px; border-radius: 8px 8px 0 0; color: #fff; }
+.s-wt .tab.on { background: rgb(var(--win)); }
+.s-wt .tab.on::after { display: none; }
+.s-wt .tab .ic { width: 16px; font: 700 9px Consolas, "Cascadia Mono", monospace; color: #fff; }
+.s-wt .tab .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-wt .tabs .plus { align-self: center; height: 28px; padding: 0 9px; display: grid; place-items: center; color: #fff; font-size: 15px; }
+.s-wt .tabs .dd { font-size: 12px; padding: 0 6px; }
+.s-wt .cap { color: #fff; }
+.s-wt .tabs .cap { align-self: stretch; }

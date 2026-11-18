@@ -88,17 +88,8 @@ function vpLabel(r) {
   if (k === 'auto') return r?.kind === 'component' ? t('Fit') : designVp(r)[0] + 'px';
   return { mobile: t('Mobile'), tablet: t('Tablet'), laptop: t('Laptop'), desktop: t('Desktop') }[k] || k;
 }
-// design modes: names, and the shell options the gallery offers (round-wide in the top bar, per variant in the card menu)
+// design modes: names (their shell options live in shellpick.js)
 const DESIGN_NAMES = () => ({ ui: t('UI'), component: t('Component'), tui: t('TUI'), app: t('App'), desktop: t('Desktop'), logo: t('Logo') });
-const PHONE_SKINS = { ip8: 'iPhone 8', ipx: 'iPhone X', ip18: 'iPhone 18', px3: 'Pixel 3', px6: 'Pixel 6', px8: 'Pixel 8', px10p: 'Pixel 10 Pro', s25: 'Galaxy S25', s25u: 'Galaxy S25 Ultra' };
-const DESK_SKINS = { mac: 'macOS', yosemite: 'OS X Yosemite', leopard: 'Mac OS X Leopard', aqua: 'Mac OS X Aqua', win11: 'Windows 11', win10: 'Windows 8 / 10', win7: 'Windows 7', xp: 'Windows XP', gnome: 'Ubuntu GNOME', kde: 'KDE Plasma' };
-function shellChoices(r) {
-  if (r.design === 'tui') return [{ key: 'shell', label: t('Terminal'), def: 'acrylic', opts: [['acrylic', t('Acrylic window')], ['tabs', t('Tabs')], ['tmux', 'tmux']] }];
-  if (r.design === 'app') return [{ key: 'skin', label: t('Phone'), def: 'ip18', opts: Object.entries(PHONE_SKINS) }, { key: 'frame', label: t('Frame'), def: 'real', opts: [['real', t('Realistic')], ['flat', t('Flat outline')], ['clay', t('Clay')]] }];
-  if (r.design === 'desktop') return [{ key: 'skin', label: t('Window'), def: 'mac', opts: Object.entries(DESK_SKINS) }, { key: 'win', label: t('Size'), def: '1280x800', opts: ['1024x768', '1280x800', '1440x900', '1920x1080'].map(x => [x, x.replace('x', '×')]) },
-    { key: 'desk', label: t('Desktop'), def: '', opts: [['', t('Window only')], ['1', t('Show desktop')]] }];
-  return [];
-}
 function renderTopbar(c = ctx()) {
   const r = c && (c.r || c.target);
   const special = SPECIAL_VIEWS.includes(S.layout);
@@ -122,13 +113,7 @@ function renderTopbar(c = ctx()) {
       box.append(sel);
     };
     mk(r.states || [], 'state', t('State')); mk(r.content || [], 'content', t('Content'));
-    for (const ch of shellChoices(r)) {
-      const sel = h('select', { class: 'tx', 'aria-label': ch.label, title: t('{x}: every variant of this round (a variant can override it from its ⋯ menu)', { x: ch.label }), style: 'height:34px' });
-      // option text without the "Label:" prefix keeps the bar short; the label stays in title/aria-label
-      ch.opts.forEach(([v, l]) => sel.append(h('option', { value: v, selected: String(rs[ch.key] ?? ch.def) === v }, l)));
-      sel.onchange = () => setShell(r, { [ch.key]: sel.value === ch.def ? null : sel.value });
-      box.append(sel);
-    }
+    shellPickInto(box, r);
   }
   icon($('#themeBtn'), S.theme === 'dark' ? 'moon' : 'sun'); $('#themeBtn').title = t('Variant theme: light / dark (D)');
   $('#themeBtn').style.display = special ? 'none' : '';
@@ -391,15 +376,6 @@ function buildCard(c, it, opts = {}) {
   setTimeout(() => updateBadges(fk));
   return card;
 }
-function shellMenu(it) {
-  const r = it.r, own = ((S.rstate[r.id] || {}).by || {})[it.v.id] || {};
-  const out = [];
-  for (const ch of shellChoices(r)) {
-    out.push({ head: t('{x} for this variant', { x: ch.label }) }, { label: t('Same as the round'), checked: own[ch.key] == null, run: () => setShell(r, { [ch.key]: null }, it.v.id) });
-    ch.opts.forEach(([v, l]) => out.push({ label: l, checked: own[ch.key] === v, run: () => setShell(r, { [ch.key]: v }, it.v.id) }));
-  }
-  return out.length ? [...out, { sep: true }] : [];
-}
 async function exportLogoSet(it) {
   if (STATIC) return toast(t('Exports need the studio server'));
   try {
@@ -422,7 +398,7 @@ function cardMenu(anchor, c, it) {
   const fk = it.fk;
   const canSend = !STATIC || true;
   showMenu(anchor, [
-    ...shellMenu(it),
+    ...shellMenu(it, anchor),
     { label: t('More like this'), icon: 'spark', run: () => sendQuick('more', it) },
     { label: t('Compare with…'), icon: 'compare', run: () => { S.cmp.a = fk; S.cmp.b = null; setLayout('compare'); } },
     { sep: true },

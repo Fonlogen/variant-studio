@@ -2,8 +2,9 @@
 // The shell is our page (scripts allowed even in mockup mode); the variant stays a static page in an inner iframe (?raw=1).
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { readJSON, MIME } from './util.mjs';
-import { UI, SCRIPTS } from './config.mjs';
+import { UI, SCRIPTS, userConfig } from './config.mjs';
 import { designOf, SHELLED } from './rounds.mjs';
 import { renderVariant } from './render.mjs';
 import { extractSvgs } from './logo.mjs';
@@ -15,6 +16,18 @@ export function wallpaperFile(P) {
 }
 const dataUri = (f) => `data:${MIME[path.extname(f).toLowerCase()].split(';')[0]};base64,${fs.readFileSync(f).toString('base64')}`;
 const safe = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+
+// who the terminal prompts show: this computer's user and host for the owner on this network (config.json tui.user / tui.host override);
+// guests, tunnel viewers and exported files get neutral names so the real ones never leave the machine
+export const NEUTRAL_WHO = { user: 'user', host: 'host' };
+export function termWho() {
+  const c = userConfig().tui || {};
+  let user = c.user, host = c.host;
+  try { user ||= os.userInfo().username; } catch {}
+  host ||= os.hostname().split('.')[0].toLowerCase(); // like bash's \h: imac.local, imac.fritz.box -> imac
+  const clean = (x, d) => String(x || '').replace(/[^\w .@-]/g, '').trim().slice(0, 32) || d;
+  return { user: clean(user, 'user'), host: clean(host, 'host') };
+}
 
 export const shellDesign = (P, roundId) => {
   const d = designOf(readJSON(path.join(P.rounds, roundId, 'round.json'), {}) || {});
@@ -31,6 +44,7 @@ export function renderShell(P, roundId, file, design, opts = {}) {
     design, round: roundId, variant: id, title: m.title || roundId, label: v.label || id.toUpperCase(),
     wallpaper: opts.inline ? dataUri(wallpaperFile(P)) : `${prefix}/_wallpaper`,
     ...(opts.inline ? { srcdoc: renderVariant(P, roundId, file, { inline: true }) } : {}),
+    ...(design === 'tui' ? { who: opts.who || NEUTRAL_WHO } : {}),
     ...(design === 'logo' ? { svg: extractSvgs(fs.readFileSync(path.join(dir, file), 'utf8')) } : {}),
   };
   const own = (f) => (opts.inline ? (f.endsWith('.css') ? `<style>${fs.readFileSync(path.join(UI, f), 'utf8')}</style>` : `<script>${fs.readFileSync(path.join(UI, f), 'utf8').replace(/<\/script/gi, '<\\/script')}</script>`)

@@ -386,6 +386,34 @@ body.insp-open #insp { display: flex; }
 #menu .mtext { padding: 10px; font-size: 12.5px; color: var(--ink-2); white-space: pre-line; }
 #menu .mtext b { color: var(--ink); display: block; margin-bottom: 4px; }
 #menu .mrow { display: flex; gap: 6px; padding: 4px 10px 8px; align-items: center; }
+/* shell picker (shellpick.js): one button, a popover of collapsible groups */
+.spbtn > span:first-child { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+#shellPick { width: 290px; max-height: min(72vh, 580px); overflow: auto; padding: 6px; border: 0; border-radius: var(--r-lg); background: var(--surf); color: var(--ink-2); box-shadow: var(--shadow); }
+@supports (position-area: block-end) {
+  #shellPick { position-anchor: --vs-spick; inset: auto; margin: 6px 0; position-area: block-end span-inline-start; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+}
+@supports not (position-area: block-end) { #shellPick { position: fixed; inset: auto; margin: 0; } }
+#shellPick .sp-h { display: grid; gap: 2px; padding: 8px 10px 6px; }
+#shellPick .sp-h b { color: var(--ink); font-weight: 600; }
+#shellPick .sp-h small { color: var(--ink-3); font-size: 11.5px; }
+#shellPick .sp-reset { width: 100%; border: 0; background: none; display: flex; align-items: center; gap: 9px; min-height: 32px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); text-align: left; }
+#shellPick .sp-reset span { width: 16px; display: grid; place-items: center; }
+#shellPick .sp-reset:hover:not(:disabled) { background: var(--surf-2); color: var(--ink); }
+#shellPick .sp-reset:disabled { opacity: .45; }
+#shellPick .sp-g summary { list-style: none; display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink); font-weight: 500; cursor: pointer; }
+#shellPick .sp-g summary::-webkit-details-marker { display: none; }
+#shellPick .sp-g summary::before { content: ""; width: 6px; height: 6px; margin: 0 4px 0 3px; border: solid var(--ink-3); border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform .15s; }
+#shellPick .sp-g[open] summary::before { transform: rotate(45deg); }
+#shellPick .sp-g summary:hover { background: var(--surf-2); }
+#shellPick :is(summary, .sp-reset, input):focus-visible { outline: 2px solid var(--acc-line); outline-offset: 1px; }
+#shellPick .sp-cur { margin-left: auto; color: var(--ink-3); font-size: 12px; font-weight: 400; white-space: nowrap; }
+#shellPick .sp-g[open] .sp-cur { display: none; }
+#shellPick :is(.sp-o, .sp-t) { display: flex; align-items: center; gap: 9px; min-height: 32px; padding: 0 10px 0 30px; border-radius: var(--r-sm); cursor: pointer; }
+#shellPick :is(.sp-o, .sp-t):hover { background: var(--surf-2); color: var(--ink); }
+#shellPick :is(.sp-o, .sp-t):has(input:checked) { color: var(--ink); }
+#shellPick :is(.sp-o, .sp-t) input { margin: 0; accent-color: var(--acc); }
+#shellPick .sp-o small { margin-left: auto; color: var(--acc); font-size: 11px; }
+#shellPick .sp-t { padding-left: 10px; margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-sm) var(--r-sm); }
 #sheet { position: fixed; inset: 0; z-index: 65; background: rgba(0,0,0,.5); display: none; align-items: flex-start; justify-content: center; padding: 8vh 16px; }
 #sheet.show { display: flex; }
 .sh-box { width: min(560px, 100%); max-height: 84vh; background: var(--bg); border-radius: var(--r-xl); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
