@@ -102,7 +102,7 @@ function renderTopbar(c = ctx()) {
   const vb = $('#vpBtn'); vb.innerHTML = (I[vk] || I.fit) + `<span>${vpLabel(r)}</span>` + (S.zoom !== 'fit' ? `<span class="hint">${Math.round(S.zoom * 100)}%</span>` : '') + I.chevD;
   vb.title = t('Viewport, zoom, device frames'); vb.style.display = special || !c ? 'none' : '';
   // states / content switches declared by the round
-  const box = $('#stateBox'); box.innerHTML = '';
+  const box = $('#stateBox'); box.innerHTML = ''; $('#modeTools').innerHTML = '';
   if (r && c.kind !== 'shortlist' && !special) {
     const rs = S.rstate[r.id] || {};
     const mk = (list, key, label) => {
@@ -113,7 +113,7 @@ function renderTopbar(c = ctx()) {
       box.append(sel);
     };
     mk(r.states || [], 'state', t('State')); mk(r.content || [], 'content', t('Content'));
-    shellPickInto(box, r);
+    shellPickInto($('#modeTools'), r);
   }
   icon($('#themeBtn'), S.theme === 'dark' ? 'moon' : 'sun'); $('#themeBtn').title = t('Variant theme: light / dark (D)');
   $('#vcBox').style.display = special ? 'none' : '';
