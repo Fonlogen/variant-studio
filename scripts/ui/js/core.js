@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — core: state, data, frames. Classic script; files share the global scope.
+// Variant Studio 4.0 — core: state, data, frames. Classic script; files share the global scope.
 'use strict';
 const STATIC = window.__VS_STATIC__ || null;
 const SHORT = '#shortlist';
@@ -64,7 +64,15 @@ const I = {
   bell: sv('<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
   globe: sv('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/>'),
   copy: sv('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>'),
-  chips: sv('<path d="M4 7h9M4 12h16M4 17h11"/>'),
+  chips: sv('<path d="M4 7h16M4 12h10M4 17h13"/>'),
+  qr: sv('<rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h2.5v2.5M20.5 14v.01M14 20.5h3M20.5 18v2.5"/>'),
+  wifi: sv('<path d="M2 8.8a15 15 0 0 1 20 0M5.5 12.4a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0M12 19.5v.01"/>'),
+  ask: sv('<path d="M4 5h16v11H9.5L5 20v-4H4z"/><path d="M8.5 10.5h7"/>'),
+  chevU: sv('<path d="m6 15 6-6 6 6"/>'),
+  resize: sv('<path d="M20 9 9 20M20 15l-5 5"/>'),
+  send: sv('<path d="M20 8H9.5a5.5 5.5 0 0 0 0 11H13"/><path d="m16 4 4 4-4 4"/>'),
+  hide: sv('<path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+  palette: sv('<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1-.8-1.3-.8-2.3 0-.9.7-1.6 1.7-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/>'),
 };
 const icon = (el, name) => { if (el) el.innerHTML = I[name]; return el; };
 
@@ -129,6 +137,7 @@ const S = {
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
   fonts: saved.fonts || { heading: '', body: '' }, knobs: saved.knobs || {}, rstate: saved.rstate || {},
   ovScope: saved.ovScope || 'group', ovSize: saved.ovSize || 260, mapSubj: saved.mapSubj || '', mapSize: saved.mapSize || 260, voter: saved.voter || '', myVotes: saved.myVotes || {}, exportScale: saved.exportScale || 2,
+  canvasColor: saved.canvasColor || '#ffffff', cardSizes: saved.cardSizes || {}, cardPreset: saved.cardPreset || 'auto', promptHidden: !!saved.promptHidden,
   railQ: '', audit: {}, tokens: {}, readySeen: null,
 };
 const persist = () => store.save({
@@ -136,6 +145,7 @@ const persist = () => store.save({
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
   collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
   fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
+  canvasColor: S.canvasColor, cardSizes: S.cardSizes, cardPreset: S.cardPreset, promptHidden: S.promptHidden,
 });
 const round = (id = S.roundId) => S.data.rounds.find(r => r.id === id);
 const approvedOf = (r) => { const d = r && r.decision; if (!d || d.action === 'unapprove') return null; const ap = d.approved?.variant || (d.action === 'choose' ? d.selected?.[0] : null); return ap && r.variants.some(v => v.id === ap) ? ap : null; };
@@ -292,10 +302,14 @@ const deviceOn = (r) => S.device && ['mobile', 'tablet'].includes(currentVpKey(r
 
 // ---------------- frames ----------------
 const frames = new Map(); // key -> frame record
+// what the variant paints behind itself: a preset name, a hex colour (custom), or '' (the page's own background)
+const canvasValue = () => S.canvas === 'none' ? '' : S.canvas === 'custom' ? S.canvasColor : S.canvas;
+// a card the user resized: { span (of 12 columns), h (stage height in px) }
+const cardSize = (fk) => { const i = fk.indexOf('/'); return S.cardSizes[fk.slice(0, i)]?.[fk.slice(i + 1)] || null; };
 function frameSrc(r, v) {
   if (v.url) return v.url;
   const rs = S.rstate[r.id] || {};
-  return `/v/${encodeURIComponent(r.id)}/${encodeURIComponent(v.file)}?round=${encodeURIComponent(r.id)}&variant=${encodeURIComponent(v.id)}&theme=${S.theme}&canvas=${S.canvas}${rs.state ? '&state=' + encodeURIComponent(rs.state) : ''}${rs.content ? '&content=' + encodeURIComponent(rs.content) : ''}&t=${Math.round(v.mtime)}`;
+  return `/v/${encodeURIComponent(r.id)}/${encodeURIComponent(v.file)}?round=${encodeURIComponent(r.id)}&variant=${encodeURIComponent(v.id)}&theme=${S.theme}&canvas=${encodeURIComponent(canvasValue())}${rs.state ? '&state=' + encodeURIComponent(rs.state) : ''}${rs.content ? '&content=' + encodeURIComponent(rs.content) : ''}&t=${Math.round(v.mtime)}`;
 }
 function makeFrame(it, opts = {}) {
   const { r, v } = it;
@@ -321,7 +335,7 @@ const postTo = (f, m) => { try { f.iframe.contentWindow.postMessage({ vsHost: tr
 function sendFrame(f) {
   const vd = vdata(f.it.fk);
   postTo(f, { type: 'theme', value: S.theme });
-  postTo(f, { type: 'canvas', value: S.canvas === 'none' ? '' : S.canvas });
+  postTo(f, { type: 'canvas', value: canvasValue() });
   postTo(f, { type: 'mode', value: f.thumb || TEAM ? '' : S.mode });
   postTo(f, { type: 'vp', mobile: isSmallVp(f.r) });
   postTo(f, { type: 'marks', list: f.thumb ? [] : vd.ann });
@@ -396,11 +410,15 @@ function layoutFrame(f, availW) {
   let H = fixedH ? vp[1] : Math.max(60, f.h);
   const z = zoomOf(f);
   let s = z === 'fit' ? Math.min(1, cw / vpW) : Number(z);
-  const maxH = f.role === 'focus' ? Math.max(320, $('#stage').clientHeight - 270) : Infinity;
+  // full screen: the stage is sized by the window, so pages and sections fill all of it; resized cards have their own height
+  const sized = f.role === 'card' ? cardSize(f.it.fk)?.h : null;
+  const maxH = f.role === 'focus' ? Math.max(200, (holder?.clientHeight || innerHeight) - 2 * pad) : sized ? Math.max(80, sized - 2 * pad) : Infinity;
   if (f.role === 'focus' && z === 'fit' && dev) s = Math.min(s, maxH / H);
   f.s = s;
+  if (f.role === 'focus' && !dev && r.kind !== 'component') H = maxH / s;
+  else if (sized && fixedH && !dev) H = maxH / s;
   // a tall variant scrolls inside its card, so the grid stays one screen high; "Full height" lets cards grow instead
-  if (f.role === 'card' && !fixedH && !S.overflow) H = Math.min(H, Math.max(320, $('#stage').clientHeight - 230) / s);
+  else if (f.role === 'card' && !fixedH && !S.overflow && !sized) H = Math.min(H, Math.max(320, $('#stage').clientHeight - 230) / s);
   const visW = vpW * s, visH = H * s;
   Object.assign(f.iframe.style, { width: vpW + 'px', height: H + 'px', transform: s === 1 ? '' : `scale(${s})`, left: '0', top: '0' });
   Object.assign(f.scaler.style, { width: visW + 'px', height: visH + 'px' });
@@ -408,13 +426,27 @@ function layoutFrame(f, availW) {
   f.wrap.classList.toggle('tab', dev && currentVpKey(r) === 'tablet');
   holder?.classList.toggle('dev', dev);
   f.wrap.style.width = dev ? (visW + 2 * pad) + 'px' : '';
-  f.wrap.style.height = (Math.min(visH, maxH) + 2 * pad) + 'px';
+  f.wrap.style.height = ((sized ? maxH : Math.min(visH, maxH)) + 2 * pad) + 'px';
   f.wrap.classList.toggle('scroll', visW > cw + 1 || visH > maxH);
   const zv = holder?.querySelector('.zv');
   if (zv) zv.textContent = (S.cardZoom[f.it.fk] == null && S.zoom === 'fit' ? t('Fit') + ' ' : '') + Math.round(s * 100) + '%';
   holder?.querySelector('.zc')?.classList.toggle('set', S.cardZoom[f.it.fk] != null);
 }
-function layoutFrames() { for (const f of liveFrames()) if (f.role !== 'layer') layoutFrame(f); layoutCompare(); }
+// card widths on the 12-column grid: the size preset (or the automatic one), then what the user dragged, then what fits
+const PRESET_SPAN = { s: 3, m: 4, l: 6, xl: 12 };
+function applySpans() {
+  for (const grid of document.querySelectorAll('#view .grid:not(.one)')) {
+    const W = grid.clientWidth; if (!W) continue;
+    const base = PRESET_SPAN[S.cardPreset] || Math.round(12 / (Number(grid.dataset.cols) || 3));
+    for (const card of grid.children) {
+      let span = cardSize(card.dataset.fk || '')?.span || base;
+      if (W < 640) span = 12; else if (W < 980) span = Math.max(span, 6);
+      card.style.setProperty('--span', Math.min(12, Math.max(2, span)));
+    }
+  }
+}
+// compare.js loads after this file; the first ResizeObserver callback can run before it does
+function layoutFrames() { applySpans(); for (const f of liveFrames()) if (f.role !== 'layer') layoutFrame(f); if (typeof layoutCompare === 'function') layoutCompare(); }
 new ResizeObserver(() => layoutFrames()).observe($('#stage'));
 
 // ---------------- messages from previews ----------------

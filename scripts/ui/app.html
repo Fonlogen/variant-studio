@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Variant Studio</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%231a1a1e'/><path d='M46 16 33.5 49' stroke='%23ededf0' stroke-width='9' stroke-linecap='round' opacity='.35'/><path d='M18 16 30.5 49' stroke='%238b9cff' stroke-width='9' stroke-linecap='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3.6' fill='%231c1c22'/><path d='M11.2 3.2h2.6L10 12.8H7.4z' fill='%23ededf0' fill-opacity='.4'/><path d='M2.2 3.2h2.6l3.8 9.6H6z' fill='%23ff8a3d'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/_ui/app.css">
 <!--VS_STATIC-->
 </head>
 <body>
 <nav id="rail" data-tip-pos="right" aria-label="Studio">
-  <div class="logo" title="Variant Studio"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M50 10 33.5 52" stroke="currentColor" stroke-width="11" stroke-linecap="round" fill="none" opacity=".3"/><path d="M14 10 30.5 52" stroke-width="11" stroke-linecap="round" fill="none" stroke="var(--acc)"/></svg></div>
+  <div class="logo" title="Variant Studio"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><mask id="vsLogoCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><path d="M9 12h12l17 40H26z" fill="#000" stroke="#000" stroke-width="3.5" stroke-linejoin="round"/></mask></defs><path d="M43 12h12L38 52H26z" fill="currentColor" fill-opacity=".3" mask="url(#vsLogoCut)"/><path d="M9 12h12l17 40H26z" fill="var(--acc)"/></svg></div>
   <button class="ri" id="rRounds" data-i18n-title="Rounds (R)"></button>
   <button class="ri" id="rShort" data-i18n-title="Shortlist"></button>
   <button class="ri" id="rTree" data-i18n-title="Version tree (T)"></button>
@@ -34,18 +34,26 @@
 <main id="main">
   <header id="top">
     <div class="ttl">
-      <div class="crumb" id="crumb"></div>
+      <!-- #modeSlot: the round's design mode badge (ui | component | tui | app | desktop | logo) -->
+      <div class="crumb"><span id="modeSlot"></span><span id="crumb"></span></div>
       <h1 id="q"></h1>
     </div>
     <div class="tools">
       <div class="seg" id="viewSeg" role="group"></div>
       <button class="pillbtn" id="vpBtn"></button>
       <div id="stateBox"></div>
+      <!-- #modeTools: controls a design mode adds to the round toolbar (shell, skin…) -->
+      <div id="modeTools"></div>
       <span class="vsep"></span>
-      <button class="ib" id="themeBtn"></button>
+      <div class="vc" id="vcBox">
+        <button class="ib sm" id="themeBtn"></button>
+        <button class="swb" id="bgBtn" popovertarget="bgPop"><span class="sw" id="bgSw"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      </div>
+      <span class="vsep"></span>
       <button class="ib" id="pickBtn"></button>
       <button class="ib" id="editBtn"></button>
       <button class="ib" id="inspBtn"></button>
+      <button class="pillbtn" id="qrBtn"></button>
       <span id="agent" class="agent" role="status"></span>
     </div>
   </header>
@@ -61,24 +69,39 @@
 
 <section id="dock" aria-label="Prompt">
   <div id="sent"></div>
-  <div class="dk">
+  <div id="pnl" class="pnl" role="group">
+    <div class="pnl-h"><b id="pnlTitle"></b><span id="pnlCtx"></span><button class="ib sm" id="pnlClose"></button></div>
+    <textarea id="note" rows="3" aria-label="Note for the agent"></textarea>
+    <div class="pl" id="refsLbl"></div>
+    <div class="refs-row"><div id="refs"></div><button class="addref" id="bAddRef"></button></div>
+    <div class="pl" id="chipsLbl"></div>
     <div id="chips"></div>
-    <div id="refs"></div>
-    <div class="dk-row">
-      <span id="chosen"></span>
-      <button class="ib" id="bAttach"></button>
-      <input type="file" id="fileIn" accept="image/*" multiple hidden>
-      <textarea id="note" rows="1" aria-label="Note for the agent"></textarea>
-      <button class="ib" id="bMic"></button>
-      <button class="ib" id="bChips"></button>
-      <span class="acts">
-        <button class="btn" id="bRevise"></button>
-        <button class="btn pri" id="bChoose"></button>
-        <button class="ib" id="bMore"></button>
-      </span>
-    </div>
+    <div class="pnl-f"><span id="pnlKeys"></span><span class="sp"></span><button class="btn sm ghost" id="bSendNote"></button></div>
+  </div>
+  <div class="fab">
+    <span id="chosen"></span>
+    <button class="ask" id="bAsk" aria-controls="pnl"></button>
+    <button class="ib" id="bAttach"></button>
+    <input type="file" id="fileIn" accept="image/*" multiple hidden>
+    <button class="ib" id="bMic"></button>
+    <button class="ib" id="bChips"></button>
+    <span class="vsep"></span>
+    <span class="acts">
+      <button class="ib" id="bLike"></button>
+      <button class="ib" id="bRegen"></button>
+      <button class="btn ghost" id="bRevise"></button>
+      <button class="btn pri" id="bChoose"></button>
+      <button class="ib" id="bMore"></button>
+    </span>
   </div>
 </section>
+
+<div id="bgPop" class="apop" popover>
+  <div class="ph"><b id="bgTitle"></b><span id="bgName"></span></div>
+  <div class="sws" id="bgSws" role="group"></div>
+  <label class="pf"><input type="color" id="bgCustom"><code id="bgHex"></code><small id="bgCustomLbl"></small></label>
+</div>
+<div id="qrPop" class="apop qrp" popover role="dialog" aria-labelledby="qrTitle"></div>
 
 <div id="pop" role="dialog" aria-modal="false">
   <div class="el" id="popEl"></div>
@@ -90,6 +113,7 @@
 <div id="pal" role="dialog" aria-label="Command palette"><div class="pal-box"><input id="palIn" autocomplete="off" spellcheck="false"><ul id="palList" role="listbox"></ul></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="/_ui/vendor/qrcode.js"></script>
 <script src="/_ui/js/i18n.js"></script>
 <script src="/_ui/js/lang/es.js"></script>
 <script src="/_ui/js/lang/fr.js"></script>
@@ -99,6 +123,7 @@
 <script src="/_ui/js/views.js"></script>
 <script src="/_ui/js/compare.js"></script>
 <script src="/_ui/js/panels.js"></script>
+<script src="/_ui/js/share.js"></script>
 <script src="/_ui/js/dock.js"></script>
 <script src="/_ui/js/boot.js"></script>
 </body>

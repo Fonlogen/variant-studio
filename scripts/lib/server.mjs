@@ -366,13 +366,13 @@ export async function serve(o = {}) {
       const seg = p.split('/')[1] || '';
       let pin = PIN_RE.test(seg.toUpperCase()) ? seg.toUpperCase() : null, rest;
       if (pin) {
-        if (!find(pin)[0]) return html(res, 404, pinPage({ error: `No active session with PIN ${pin}. The agent may have stopped it: ask it to run \`start\` again.`, pin, sessions: sessionsHere(req) }));
+        if (!find(pin)[0]) return html(res, 404, pinPage({ error: 'unknown', pin, sessions: sessionsHere(req), host: req.headers.host }));
         if (seg !== pin || p === '/' + seg) return redirect(res, `/${pin}${p.slice(seg.length + 1) || '/'}${u.search}`);
         rest = p.slice(pin.length + 1);
       } else if (p === '/' || p === '/index.html') {
         const q = String(u.searchParams.get('pin') || '').trim().toUpperCase();
-        if (!q) return html(res, 200, pinPage({ sessions: sessionsHere(req) }));
-        if (!known(q)) return html(res, 404, pinPage({ error: `No active session with PIN ${q}.`, pin: q, sessions: sessionsHere(req) }));
+        if (!q) return html(res, 200, pinPage({ sessions: sessionsHere(req), host: req.headers.host }));
+        if (!known(q)) return html(res, 404, pinPage({ error: 'unknown', pin: q, sessions: sessionsHere(req), host: req.headers.host }));
         u.searchParams.delete('pin');
         return redirect(res, `/${q}/${u.search}`);
       } else {
@@ -383,7 +383,7 @@ export async function serve(o = {}) {
         rest = p;
       }
       const [s, role] = find(pin);
-      if (viaTunnel(req) && !s.remote) return html(res, 404, pinPage({ error: 'This session is not shared outside the local network.' }));
+      if (viaTunnel(req) && !s.remote) return html(res, 404, pinPage({ error: 'remote', host: req.headers.host }));
       if (role === 'guest' && !guestAllowed(rest, req.method)) { res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Not available to guests.'); }
       s.lastActivity = Date.now();
       return await route(s, role, pin, rest, u, req, res);

@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — prompt dock: selection, note, chips, references, voice, sending, undo and revoke.
+// Variant Studio 4.0 — prompt dock: selection, note, chips, references, voice, sending, undo and revoke.
 'use strict';
 
 const QUICK = ['More minimal', 'More contrast', 'More whitespace', 'Denser', 'Bigger type', 'Stronger hierarchy', 'Sharper corners', 'Softer corners', 'More premium', 'More playful', 'Warmer palette', 'Cooler palette', 'Fewer colors', 'Better empty and loading states'];
@@ -24,68 +24,120 @@ function availableActions(c = ctx()) {
 }
 
 // ---------------- render ----------------
+// The prompt is a pill at the bottom right: the selection, "Write to the agent" (opens the note panel above it),
+// attachments, dictation, chips, then the decision buttons. The panel never pushes the cards.
+let dockOpen = false;
+function setDockOpen(v, focusNote = v) {
+  dockOpen = v; $('#dock').classList.toggle('open', v);
+  $('#bAsk').setAttribute('aria-expanded', String(v));
+  if (v && focusNote) setTimeout(() => { const n = $('#note'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); autoGrow(n); });
+  if (!v && document.activeElement === $('#note')) $('#note').blur();
+}
+function setPromptHidden(v) {
+  S.promptHidden = v; persist(); document.body.classList.toggle('prompt-hidden', v);
+  if (v) { setDockOpen(false); toast(t('Prompt hidden. Press / to bring it back.'), { action: { label: t('Undo'), run: () => setPromptHidden(false) } }); }
+}
+// what Ctrl/⌘ Enter does right now: { action, label }
+function primaryAction(c, d) {
+  if (c.kind === 'approved' || c.kind === 'discarded') return { action: 'revise', label: t('Request changes') };
+  const note = (d.note || '').trim();
+  if (d.selected.length === 1 && !note) return { action: 'choose', label: t('Approve') };
+  if (d.selected.length >= 2) return { action: 'remix', label: t('Combine') };
+  if (d.selected.length === 1) return { action: 'revise', label: t('Request changes') };
+  if (note) return { action: 'regenerate', label: t('Start over') };
+  return null;
+}
 function renderDock() {
   const c = ctx();
   const dock = $('#dock');
   const special = SPECIAL_VIEWS.includes(S.layout);
   dock.style.display = !c || special ? 'none' : '';
+  document.body.classList.toggle('prompt-hidden', !!S.promptHidden && !TEAM);
   renderSent();
   if (!c || special) return;
   const d = draft(c.key);
-  const row = $('.dk-row');
   // team reviewers: no decisions, just who they are
   let vb = $('.voterbar');
+  dock.classList.toggle('team', TEAM);
   if (TEAM) {
-    row.style.display = 'none'; $('#chips').classList.remove('show'); $('#refs').innerHTML = '';
-    if (!vb) { vb = h('div', { class: 'voterbar' }); $('.dk').append(vb); }
+    setDockOpen(false);
+    if (!vb) { vb = h('div', { class: 'voterbar' }); $('.fab').append(vb); }
     vb.innerHTML = '';
     vb.append(h('span', {}, S.voter ? h('span', {}, t('Reviewing as'), ' ', h('b', {}, S.voter)) : t('Enter your name to vote')),
-      h('span', { class: 'sp', style: 'flex:1' }),
       h('span', { class: 'hint' }, t('Use 👍 👎 and the comment on each card')),
       h('button', { class: 'btn sm', onclick: () => S.voter ? openTeam() : askVoterName() }, S.voter ? t('Change name') : t('Enter name')),
       STATIC && S.voter ? h('button', { class: 'btn sm pri', html: I.download + `<span>${t('Download my votes')}</span>`, onclick: downloadVotes }) : null);
     return;
   }
-  vb?.remove(); row.style.display = '';
+  vb?.remove();
 
   // selection
   const ch = $('#chosen'); ch.innerHTML = '';
+  const extras = changeCount(c);
   if (d.selected.length) {
-    ch.append(h('b', {}, d.selected.map(shortKey).join(' + ')));
-    const extras = changeCount(c);
-    if (extras) ch.append(h('span', { class: 'hint', title: t('Comments, edits and tweaks that go with the decision') }, '· ' + extras));
-    ch.title = t('Selected. Click a letter on a card (or press 1–9) to change the selection.');
-  } else { ch.append(h('span', {}, t('Select a variant'))); ch.title = t('Click a card or press 1–9'); }
+    const one = d.selected.length === 1 ? c.items.find(x => x.key === d.selected[0]) : null;
+    ch.className = '';
+    ch.append(h('i', {}, d.selected.map(shortKey).join('+')), h('span', { class: 'lb' }, one ? labelOf(one) : t('{n} selected', { n: d.selected.length })));
+    if (c.kind !== 'approved') ch.append(h('button', { title: t('Clear selection'), 'aria-label': t('Clear selection'), html: I.x, onclick: () => { d.selected = []; persist(); updateCards(); renderDock(); } }));
+    ch.title = t('Selected. Click a letter on a card (or press 1–9) to change the selection.') + (extras ? '\n' + extras : '');
+  } else { ch.className = 'none'; ch.append(h('span', { class: 'lb' }, t('Select a variant'))); ch.title = t('Click a card or press 1–9'); }
 
-  // note
+  // note (in the panel) and the button that opens it
   const note = $('#note');
   if (document.activeElement !== note) note.value = d.note || '';
   note.placeholder = c.kind === 'approved' ? t('What should change in the approved design?') : d.selected.length > 1 ? t('What to take from each one…') : d.selected.length ? t('What should change? (optional)') : t('Describe what you want, or select a variant first');
-  autoGrow(note);
+  const draftNote = (d.note || '').trim();
+  const ask = $('#bAsk');
+  ask.innerHTML = I.ask + `<span class="lb"></span><kbd>/</kbd><span class="cv">${I.chevU}</span>`;
+  ask.querySelector('.lb').textContent = draftNote ? draftNote : t('Write to the agent');
+  ask.title = t('Write a note for the agent (/)'); ask.setAttribute('aria-expanded', String(dockOpen));
+  $('#pnlTitle').textContent = t('Note for the agent');
+  $('#pnlCtx').textContent = d.selected.length ? '· ' + t('goes with your choice of {x}', { x: d.selected.map(shortKey).join(' + ') }) : '';
+  icon($('#pnlClose'), 'x'); $('#pnlClose').title = t('Close (Esc)');
+  if (dockOpen) autoGrow(note);
 
   // buttons
   const acts = availableActions(c);
   const has = (a) => acts.some(x => x.action === a);
   const bC = $('#bChoose'), bR = $('#bRevise'), bM = $('#bMore');
-  bC.innerHTML = I.check + `<span>${t('Approve')}</span>`;
+  bC.innerHTML = I.check + `<span>${d.selected.length === 1 ? t('Approve {x}', { x: shortKey(d.selected[0]) }) : t('Approve')}</span>`;
   bC.title = t('Approve the selected variant (Ctrl/⌘ Enter)');
   bC.style.display = c.kind === 'approved' || c.kind === 'discarded' ? 'none' : '';
   bC.disabled = !has('choose') || sending || null;
   const remix = d.selected.length >= 2 && has('remix');
-  bR.innerHTML = (remix ? I.layers : I.redo) + `<span>${remix ? t('Combine') : c.kind === 'discarded' ? t('Bring back') : t('Request changes')}</span>`;
+  const revLabel = remix ? t('Combine') : c.kind === 'discarded' ? t('Bring back') : t('Request changes');
+  bR.innerHTML = (remix ? I.layers : I.send) + `<span>${revLabel}</span>`;
   bR.title = remix ? t('Ask for a new round that blends the selected variants') : t('Ask for a new round based on the selected variant and your notes');
   bR.disabled = !(remix || has('revise')) || sending || null;
-  bR.classList.toggle('pri', c.kind === 'approved' || c.kind === 'discarded' || d.selected.length > 1);
+  bR.classList.toggle('pri', c.kind === 'approved' || c.kind === 'discarded');
+  bR.classList.toggle('ghost', !(c.kind === 'approved' || c.kind === 'discarded'));
+  icon($('#bLike'), 'spark'); $('#bLike').title = t('More like this'); $('#bLike').disabled = !has('more') || sending || null;
+  icon($('#bRegen'), 'refresh'); $('#bRegen').title = t('Start over'); $('#bRegen').disabled = !has('regenerate') || sending || null;
+  $('#bLike').style.display = $('#bRegen').style.display = c.kind === 'approved' ? 'none' : '';
   icon(bM, 'more'); bM.title = t('More actions'); bM.disabled = sending || null;
-  icon($('#bAttach'), 'attach'); $('#bAttach').title = STATIC ? t('Reference images need the live server') : t('Attach reference images (or paste / drop them)');
+  const nRefs = (d.refs || []).length;
+  icon($('#bAttach'), 'attach'); if (nRefs) $('#bAttach').append(h('span', { class: 'n' }, String(nRefs)));
+  $('#bAttach').title = STATIC ? t('Reference images need the live server') : t('Attach reference images (or paste / drop them)');
   $('#bAttach').disabled = STATIC || null;
   icon($('#bMic'), 'mic'); $('#bMic').title = rec ? t('Stop dictation') : t('Dictate a note');
   $('#bMic').style.display = SR ? '' : 'none';
   icon($('#bChips'), 'chips'); $('#bChips').title = t('Prompt chips'); $('#bChips').setAttribute('aria-pressed', String(S.chipsOpen));
+  dock.classList.toggle('chips', S.chipsOpen);
+  // panel footer: what Ctrl/⌘ Enter sends, and the change request button
+  const pa = primaryAction(c, d);
+  const keys = $('#pnlKeys'); keys.innerHTML = '';
+  if (pa) keys.append(h('kbd', {}, navigator.platform?.startsWith('Mac') ? '⌘ Enter' : 'Ctrl Enter'), ' ' + pa.label + '  ');
+  keys.append(h('kbd', {}, 'Esc'), ' ' + t('close'));
+  const bS = $('#bSendNote');
+  bS.innerHTML = (remix ? I.layers : I.send) + `<span>${remix ? t('Send as combine request') : t('Send as change request')}</span>`;
+  bS.disabled = bR.disabled;
+  $('#refsLbl').textContent = t('References'); $('#chipsLbl').textContent = t('Chips');
+  const ar = $('#bAddRef'); ar.innerHTML = I.image + `<span>${t('Add')}</span>`; ar.disabled = STATIC || null; ar.title = t('Attach reference images (or paste / drop them)');
 
   renderChips();
   renderRefs(c, d);
 }
+
 function changeCount(c) {
   let n = 0;
   for (const it of c.items) { const vd = S.vdata[it.fk]; if (!vd) continue; n += (vd.ann?.length || 0) + Object.keys(vd.tokens || {}).length + Object.keys(vd.edits || {}).length + (vd.comment?.trim() ? 1 : 0); }
@@ -97,7 +149,7 @@ function renderChips() {
   el.classList.toggle('show', S.chipsOpen && !TEAM);
   if (!S.chipsOpen) return;
   const note = $('#note');
-  const addText = (txt) => { const d = draft(ctx()?.key); const cur = (d.note || '').trim(); d.note = cur ? `${cur}${/[.!?]$/.test(cur) ? '' : '.'} ${txt}` : txt; persist(); note.value = d.note; autoGrow(note); note.focus(); };
+  const addText = (txt) => { const d = draft(ctx()?.key); const cur = (d.note || '').trim(); d.note = cur ? `${cur}${/[.!?]$/.test(cur) ? '' : '.'} ${txt}` : txt; persist(); note.value = d.note; autoGrow(note); note.focus(); renderDock(); };
   for (const q of QUICK) el.append(h('button', { onclick: () => addText(t(q)) }, t(q)));
   S.myChips.forEach((cp, i) => el.append(h('button', { class: 'mine', title: t('Saved prompt'), onclick: (e) => { if (e.target.closest('.x')) { S.myChips.splice(i, 1); persist(); renderChips(); return; } addText(cp); } }, cp, h('span', { class: 'x', title: t('Remove'), 'aria-label': t('Remove') }, '×'))));
   const cur = (note.value || '').trim();
@@ -202,7 +254,7 @@ async function submit(action, extra = {}) {
       ...(c.kind === 'approved' && action === 'revise' ? { approved_variant: c.ap } : {}),
       ...(c.kind === 'shortlist' ? { shortlist: true } : {}),
       ...(extra.no_hold || action !== 'choose' ? { no_hold: true } : {}),
-      viewed_at: { viewport: vpKey === 'custom' ? 'custom' : vpKey, width: currentVp(r)[0], theme: S.theme, layout: S.layout, ...(rs.state ? { state: rs.state } : {}), ...(rs.content ? { content: rs.content } : {}) },
+      viewed_at: { viewport: vpKey === 'custom' ? 'custom' : vpKey, width: currentVp(r)[0], theme: S.theme, background: canvasValue() || 'page', layout: S.layout, ...(rs.state ? { state: rs.state } : {}), ...(rs.content ? { content: rs.content } : {}) },
     };
     if (!STATIC && !['export', 'unapprove'].includes(action)) {
       const shots = await shotsFor(c, selected.length ? selected : action === 'regenerate' ? c.items.slice(0, 3).map(i => i.key) : []);
@@ -232,7 +284,7 @@ async function submit(action, extra = {}) {
     if (!only) { d.note = ''; d.ranking = null; d.refs = []; }
     if (c.kind === 'discarded' || c.kind === 'shortlist') d.selected = [];
     persist();
-    $('#note').blur();
+    setDockOpen(false);
     S.follow = true;
     await refresh();
   } catch (e) { toast(t('Could not send: {x}', { x: e.message })); }
@@ -290,6 +342,7 @@ let rec = null;
 function toggleMic() {
   if (!SR) return toast(t('Dictation is not supported in this browser'));
   if (rec) { rec.stop(); return; }
+  setDockOpen(true, false);
   const note = $('#note'); const d = draft(ctx()?.key);
   const base = (note.value || '').trim();
   rec = new SR(); rec.lang = { it: 'it-IT', es: 'es-ES', fr: 'fr-FR', ru: 'ru-RU' }[S.lang] || 'en-US'; rec.interimResults = true; rec.continuous = true;
@@ -305,8 +358,15 @@ function toggleMic() {
   note.addEventListener('input', () => { const c = ctx(); if (!c) return; draft(c.key).note = note.value; persist(); autoGrow(note); if (S.chipsOpen) renderChips(); });
   note.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendPrimary(); }
-    if (e.key === 'Escape') note.blur();
+    if (e.key === 'Escape') { e.stopPropagation(); setDockOpen(false); }
   });
+  note.addEventListener('blur', () => renderDock());
+  $('#bAsk').onclick = () => setDockOpen(!dockOpen);
+  $('#pnlClose').onclick = () => setDockOpen(false);
+  $('#bAddRef').onclick = () => $('#fileIn').click();
+  $('#bLike').onclick = () => submit('more');
+  $('#bRegen').onclick = () => submit('regenerate');
+  $('#bSendNote').onclick = () => $('#bRevise').click();
   $('#bChoose').onclick = () => submit('choose');
   $('#bRevise').onclick = () => { const c = ctx(); const n = c ? draft(c.key).selected.length : 0; submit(n >= 2 && c.kind !== 'approved' ? 'remix' : 'revise'); };
   $('#bMore').onclick = (e) => {
@@ -319,12 +379,14 @@ function toggleMic() {
       { label: t('Attach reference image'), icon: 'image', disabled: STATIC, run: () => $('#fileIn').click() },
       { label: draft(c.key).ranking?.length ? t('Remove attached ranking') : t('Rank with an A vs B tournament'), icon: 'trophy', run: () => { const d = draft(c.key); if (d.ranking?.length) { d.ranking = null; persist(); renderDock(); } else { S.cmp.mode = 'duel'; setLayout('compare'); } } },
       { label: t('Clear selection and note'), icon: 'x', run: () => { const d = draft(c.key); d.selected = c.kind === 'approved' ? [c.ap] : []; d.note = ''; d.refs = []; d.ranking = null; persist(); updateCards(); renderDock(); } },
+      { sep: true },
+      { label: t('Hide the prompt bar'), icon: 'hide', title: t('Press / to bring it back'), run: () => setPromptHidden(true) },
     ]);
   };
   $('#bAttach').onclick = () => $('#fileIn').click();
-  $('#fileIn').onchange = (e) => { addRefs(e.target.files); e.target.value = ''; };
+  $('#fileIn').onchange = (e) => { setDockOpen(true, false); addRefs(e.target.files); e.target.value = ''; };
   $('#bMic').onclick = toggleMic;
-  $('#bChips').onclick = () => { S.chipsOpen = !S.chipsOpen; persist(); renderDock(); };
+  $('#bChips').onclick = () => { S.chipsOpen = !S.chipsOpen; persist(); if (S.chipsOpen) setDockOpen(true, false); renderDock(); };
   // paste and drop images anywhere in the studio
   addEventListener('paste', (e) => { const files = [...(e.clipboardData?.files || [])]; if (files.some(f => f.type.startsWith('image/'))) { e.preventDefault(); addRefs(files); } });
   let dragN = 0;

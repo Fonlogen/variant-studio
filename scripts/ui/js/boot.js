@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — keyboard, live connection, wiring and start-up.
+// Variant Studio 4.0 — keyboard, live connection, wiring and start-up.
 'use strict';
 
 function renderAll() { renderRail(); renderRound(true); renderDock(); renderInspector(); renderAgent(); }
@@ -51,6 +51,7 @@ addEventListener('keydown', (e) => {
     if ($('#menu').classList.contains('show')) return hideMenu();
     if ($('#pop').classList.contains('show')) return closePop();
     if ($('#sheet').classList.contains('show') && !TEAM_NAME_REQUIRED()) return closeSheet();
+    if (dockOpen) return setDockOpen(false);
     if (S.mode) return setMode('');
     if (S.layout === 'focus') return closeFocus();
     if (S.insp && innerWidth < 1100) return toggleInsp(false);
@@ -76,7 +77,7 @@ addEventListener('keydown', (e) => {
     c: () => setMode(S.mode === 'pick' ? '' : 'pick'), e: () => setMode(S.mode === 'edit' ? '' : 'edit'), i: () => toggleInsp(),
     n: toggleNotes, d: () => setTheme(S.theme === 'light' ? 'dark' : 'light'), u: () => setUi(S.ui === 'dark' ? 'light' : 'dark'), r: () => toggleDrawer(),
     '+': () => zoomAll(1), '=': () => zoomAll(1), '-': () => zoomAll(-1), '0': () => zoomAll(0), '?': openHelp,
-    '/': () => { const n = $('#note'); if (n.offsetParent) n.focus(); },
+    '/': () => { if (TEAM || !ctx() || SPECIAL_VIEWS.includes(S.layout)) return; if (S.promptHidden) { S.promptHidden = false; persist(); document.body.classList.remove('prompt-hidden'); return setDockOpen(true); } setDockOpen(!dockOpen); },
   };
   const fn = map[k.toLowerCase()] || map[k];
   if (fn) { e.preventDefault(); fn(); }
@@ -117,6 +118,8 @@ function connect() {
 
 // ---------------- start ----------------
 setUi(S.ui);
+applyStageCanvas();
+document.body.classList.toggle('prompt-hidden', !!S.promptHidden && !TEAM);
 applyI18n();
 if (TEAM) document.body.classList.add('team');
 // deep link to a variant: /<PIN>?round=<id>&v=<variant>&focus=1

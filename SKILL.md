@@ -84,7 +84,7 @@ If the user did not ask for a visual preview, offer it in one sentence the first
   "team_votes": { "b": { "Giulia": { "vote": "up", "comment": "Clearer" } } },
   "references": ["/abs/.variant-studio/rounds/002-product-card/_refs/x1-moodboard.png"],
   "screenshots": { "b": "/abs/.variant-studio/rounds/002-product-card/_shots/x2-b.png" },
-  "viewed_at": { "viewport": "laptop", "width": 1280, "theme": "dark", "layout": "grid", "state": "loading" },
+  "viewed_at": { "viewport": "laptop", "width": 1280, "theme": "dark", "background": "light", "layout": "grid", "state": "loading" },
   "design_target": { "kind": "component", "viewports": ["auto"] },
   "files": { "b": "/abs/.variant-studio/rounds/002-product-card/b.html" },
   "also_pending": [],
@@ -133,7 +133,7 @@ When the user asks in chat to change these ("make them clickable", "prototype mo
 
 ## Target viewport (read this before every section or page)
 
-`viewed_at` is only where the user happened to look. The design target is `design_target.viewports`, set from `--viewports` when you created the round. Design for the target. Never turn a desktop design into a mobile one (or the reverse) because the user glanced at another width, unless the note asks for it.
+`viewed_at` is only where the user happened to look. The design target is `design_target.viewports`, set from `--viewports` when you created the round. Design for the target. Never turn a desktop design into a mobile one (or the reverse) because the user glanced at another width, unless the note asks for it. The same goes for `viewed_at.background`: it is the canvas the user previewed on (light, gray, dark, black, checker or a hex colour), not a request to change the design's background.
 
 - Pick the target from the user's request and the project: an admin dashboard is `laptop`; a mobile app screen is `mobile`; a responsive marketing page is `laptop,mobile` (the first is the default view).
 - Pass it every time: `--kind page --viewports laptop,mobile`. Iterations inherit it from `--parent`.
