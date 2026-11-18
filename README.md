@@ -16,30 +16,15 @@ It works with Claude Code, Claude Desktop, Codex, Antigravity, Gemini CLI, Kilo 
 <table>
   <tr>
     <td width="50%"><img src="assets/screenshots/compare.png" alt="Swipe compare between two variants"><br><sub><b>Compare</b>: swipe, overlay, A vs B tournament, before/after</sub></td>
-    <td width="50%"><img src="assets/screenshots/map.png" alt="Variants map: the chosen variant of each round and the branches between rounds"><br><sub><b>Variants map</b>: what you chose in every round and where it led</sub></td>
+    <td width="50%"><img src="assets/screenshots/tui.png" alt="Four terminal app variants in acrylic terminal windows, frame only"><br><sub><b>Design modes</b>: terminal, phone, desktop window and logo frames</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="assets/screenshots/focus.png" alt="Full screen view of one variant"><br><sub><b>Full screen</b> with arrow keys</sub></td>
+    <td width="50%"><img src="assets/screenshots/focus.png" alt="Full screen view of one variant"><br><sub><b>Full screen</b> with arrow keys, exclusive or inside the page</sub></td>
     <td width="50%"><img src="assets/screenshots/light.png" alt="The studio in its light theme"><br><sub><b>Light theme</b>, and the interface in five languages</sub></td>
   </tr>
 </table>
 
-## Made with DesignerSkill
-
-<p align="center">
-  <a href="https://github.com/Kekko16004/DesignerSkill">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Kekko16004/DesignerSkill/main/assets/brand/lockup-dark.png">
-      <img src="https://raw.githubusercontent.com/Kekko16004/DesignerSkill/main/assets/brand/lockup-light.png" alt="DesignerSkill" width="300">
-    </picture>
-  </a>
-</p>
-
-Variant Studio is developed in collaboration with [**DesignerSkill**](https://github.com/Kekko16004/DesignerSkill) by [Kekko16004](https://github.com/Kekko16004), and ships inside it as its variant gallery.
-
-DesignerSkill is a design skill for coding agents that steers away from generic, look-alike UI. Before writing any markup it studies real products similar to yours, fixes the design tokens (colors, type, spacing), then shows you several genuinely different directions in Variant Studio. After you choose, it checks the result for accessibility and common clichés, writes a design spec, and translates the approved design to your stack: HTML, React, React Native and others. It covers websites, phone apps and game UI.
-
-Install Variant Studio on its own, or say yes when the installer offers DesignerSkill: it is cloned to `~/.designer/DesignerSkill` and installed in the same agents, using this Variant Studio. You can also get both from [the DesignerSkill repository](https://github.com/Kekko16004/DesignerSkill), whose updater keeps Variant Studio current too.
+<p align="center"><img src="assets/screenshots/phone.png" alt="The gallery on a phone: one variant at a time with A/B/C tabs and the decision buttons at the bottom" width="260"><br><sub><b>On your phone</b>: scan the QR code, swipe between variants, decide</sub></p>
 
 ## Install
 
@@ -59,8 +44,7 @@ One command installs and updates. It asks:
 
 1. **Which agents.** The ones found on your machine are already ticked; press `d` for detected only, `a` for all.
 2. **Remote sharing.** Say yes to install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (if it is missing) and let teammates outside your network open the studio. Say no and nothing extra is installed.
-3. **DesignerSkill too?** Say yes to install [DesignerSkill](https://github.com/Kekko16004/DesignerSkill) in the same agents (Claude Code, Codex, Antigravity, Kilo Code, Cursor, OpenCode, Copilot), wired to this Variant Studio.
-4. **Globally or into one project.**
+3. **Globally or into one project.**
 
 Already installed? Run the same command: it replaces the old files, keeps your config files and shows the version change. Node.js 18 or newer is the only requirement. More options under [Installation](#installation).
 
@@ -85,21 +69,45 @@ Every round is kept, grouped by product area and subject, with iterations nested
 
 ## What's new in 4.0
 
-- **One studio for all your projects.** A single server on port 8065 (8066, 8067… if it is taken) serves every project. Each project gets a 5-character PIN that stays the same between restarts: open `http://variant-studio.localhost:8065/X91Z4`, or `?pin=X91Z4`. Opening the address without a PIN asks for one; on your own computer it also lists the active sessions.
-- **Open it on your phone.** The *Phone* button shows a QR code for the whole gallery, and every card has one for its variant. Pick local network or tunnel, and owner (decides) or guest (looks and votes).
-- **Stopping is polite.** `stop` closes only the current project. The server exits when no project is left. `stop --all` lists the other sessions and needs `--confirm`, so the agent asks you first; the other sessions are told.
-- **Design modes**, set per round with `--design`, shown next to the title:
-  - `tui`: the variant runs inside a terminal. Acrylic window, tabs, tmux, plain black, Ubuntu, CMD, PowerShell, Windows Terminal. Nerd Fonts or your own fonts, opacity, blur, wallpaper (`.variant-studio/wallpaper.*` or the bundled one), a prompt you can type in with your user and host name.
-  - `app`: CSS phones. iPhone 8, X, 18; Pixel 3, 6, 8, 10 Pro; Galaxy S25 and S25 Ultra. Realistic, flat or clay frames.
-  - `desktop`: window frames for macOS (current, Yosemite, Leopard, Aqua), Windows 11, 8/10, 7, XP, Ubuntu GNOME and KDE Plasma, at four window sizes, with or without the desktop around them.
-  - `logo`: the mark as a favicon in a browser tab, iOS and Android icons, sizes from 16 to 128, light, dark and monochrome.
-  - Styles live in one grouped picker for the round, and any variant can override them from its ⋯ menu.
-- **Logo and image tools** for the agent: `logo-export` (SVG, PNG 16–1024, favicon.ico, apple-touch-icon, maskable, manifest), `palette`, `fonts`, and `image` (OpenAI gpt-image, key in `OPENAI_API_KEY` or `~/.variant-studio/config.json`).
-- **Export a variant** as one self-contained HTML file, as `index.html` + `style.css` + `script.js`, or with the shared CSS in its own file.
-- **A lighter studio.** Dark by default with an orange accent, lower bars, flat sidebar rows. The prompt is a pill at the bottom right: it shows the usual actions, opens upward when you write, and can be hidden. Cards keep their natural height; full screen is real full screen.
-- **Your layout, your background.** Resize any card by its edge or corner (double-click resets). Pick the canvas behind the variants: light, gray, dark, black, checkerboard or any color.
-- **Fix accessibility in one click.** In the audit, *Ask the agent to fix them* sends the issues of one variant, or all of them, and the agent edits the files in place.
-- New logo.
+**One studio for every project**
+- A single server on port 8065 (8066, 8067… if it is taken) serves all your projects. Each project is a session with its own 5-character PIN, stable across restarts: `http://variant-studio.localhost:8065/X91Z4`, or `?pin=X91Z4`.
+- Opening the address without a PIN asks for one. On your own computer the same page lists the active sessions.
+- `stop` closes only the current project; the server exits when no project is left. `stop --all` lists the other sessions and needs `--confirm`, so the agent asks you first, and the other sessions are told.
+
+**On your phone**
+- The *Phone* button shows a QR code for the whole gallery, and every card has one for its own variant. Pick local network or tunnel, owner (decides) or guest (looks and votes).
+- A real phone layout: one variant at a time with A/B/C tabs and swipe, rating and star on the card, theme and background on the preview, the note under it, and *Write to the agent*, *More like this*, *Start over*, *Request changes* and *Approve* at the bottom. The rounds open as a bottom sheet, the note as a tall sheet.
+
+**Design modes** (`--design`, per round, shown next to the title)
+- `tui`: the variant is the screen of a terminal app. Acrylic, tabs, tmux, plain black, Ubuntu, CMD, PowerShell and Windows Terminal windows; Nerd Fonts or fonts on your computer; opacity, blur and wallpaper (`.variant-studio/wallpaper.*`, else the bundled one); a prompt you can type in, with your user and host name. The screen keeps its real 100 columns and scales down to fit the card.
+- `app`: CSS phones. iPhone 8, X, 18; Pixel 3, 6, 8, 10 Pro; Galaxy S25 and S25 Ultra; realistic, flat or clay frames.
+- `desktop`: window frames for macOS (current, Yosemite, Leopard, Aqua), Windows 11, 8/10, 7, XP, Ubuntu GNOME and KDE Plasma, at four window sizes, with or without the desktop around them.
+- `logo`: the mark as a favicon in a browser tab, iOS and Android icons, sizes from 16 to 128, light, dark and monochrome.
+- All styles sit in one grouped picker for the round; any variant can override them from its ⋯ menu.
+- **Frame only** (on by default, toggle in the top bar): the card's border and background disappear and the phone, window or terminal sits straight on the gallery. A small button on the variant opens its options.
+- The agent writes only what goes inside the frame: no drawn devices, windows or presentation boards, and `--viewports` is ignored because the frame sets the size.
+
+**Logo and image tools** for the agent: `logo-export` (SVG, PNG 16–1024, favicon.ico, apple-touch-icon, maskable, manifest), `palette` (OKLCH scales with contrast ratios), `fonts` (curated pairs and local fonts) and `image` (OpenAI gpt-image, key in `OPENAI_API_KEY` or `~/.variant-studio/config.json`).
+
+**Export** a variant as one self-contained HTML file, as `index.html` + `style.css` + `script.js`, or with the shared CSS in its own file.
+
+**A lighter studio**
+- Dark by default with an orange accent, lower bars, flat sidebar rows, a new logo.
+- The prompt is a pill at the bottom right: it shows the usual actions, opens upward when you write, and can be hidden.
+- The top bar shows the design mode and wraps instead of hiding the title.
+- Full screen comes in two flavours, chosen from the full-screen view or the command palette: exclusive (the browser's full screen) or expanded to the whole page.
+
+**Your layout, your background**
+- Cards start the same size. Resize any of them freely by its edge or corner, in width and height (arrow keys work too; double-click resets).
+- Pick the canvas behind the variants: light, gray (the default), dark, black, checkerboard or any color. Terminals, phones and windows use it too.
+- Fixed-width components wider than their card are scaled down instead of cut off.
+
+**Accessibility fixes in one click.** In the audit, *Ask the agent to fix them* sends the issues of one variant, or of all of them, and the agent edits the files in place.
+
+**Fixes**
+- The grid no longer jumps up and down at some window sizes (a scrollbar loop).
+- No white edges behind phone and window frames when the variant theme differs from the studio theme.
+- The installer no longer offers a second skill: it installs Variant Studio only.
 
 ## What's new in 3.5
 
@@ -124,7 +132,7 @@ Every round is kept, grouped by product area and subject, with iterations nested
 - **Five languages.** English, Italian, Spanish, French and Russian. The studio starts from your browser's language, and the agent writes round titles, questions and labels in the same language.
 - **Tall variants scroll inside their card**, so the grid stays one screen high. *Full height* in the viewport menu lets cards grow instead.
 - **Tooltips on every control**, shown almost instantly and placed wherever there is room.
-- **Installer and updater in one command.** Pick the agents (now also Claude Desktop and Cursor), choose remote sharing, and optionally install [DesignerSkill](https://github.com/Kekko16004/DesignerSkill) in the same agents. Running it again updates and keeps your config files.
+- **Installer and updater in one command.** Pick the agents (now also Claude Desktop and Cursor), and choose remote sharing. Running it again updates and keeps your config files.
 - Fixes: variant names no longer cut to one letter on narrow cards; inspector tabs no longer slide under the close button.
 
 ## What's new in 3.0
@@ -170,11 +178,11 @@ Every round is kept, grouped by product area and subject, with iterations nested
 | | |
 |---|---|
 | Scope | Components, sections and full pages, each with its own preview layout |
-| Design modes | `ui`, `component`, `tui` (terminal window: acrylic, tabs or tmux; Nerd Fonts, opacity, blur, wallpaper, a prompt you can type in), `app` (CSS phones: iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra; realistic, flat or clay frames), `desktop` (window frames: macOS, Yosemite, Leopard, Aqua, Windows 11 / 10 / 7 / XP, GNOME, KDE; sizes up to 1920×1080; optional desktop), `logo` (favicon, iOS and Android icons, sizes, monochrome). Styles for the whole round or per variant |
+| Design modes | `ui`, `component`, `tui` (terminal window: acrylic, tabs or tmux; Nerd Fonts, opacity, blur, wallpaper, a prompt you can type in), `app` (CSS phones: iPhone 8 / X / 18, Pixel 3 / 6 / 8 / 10 Pro, Galaxy S25 / S25 Ultra; realistic, flat or clay frames), `desktop` (window frames: macOS, Yosemite, Leopard, Aqua, Windows 11 / 10 / 7 / XP, GNOME, KDE; sizes up to 1920×1080; optional desktop), `logo` (favicon, iOS and Android icons, sizes, monochrome). Styles for the whole round or per variant; *Frame only* shows just the device or window |
 | Logo tools | `logo-export` (SVG, PNG 16…1024, favicon.ico, apple-touch-icon, maskable, manifest), `palette` (OKLCH scales with contrast ratios), `fonts` (curated pairs + local fonts), `image` (OpenAI gpt-image-1) |
 | Export | Any variant as one self-contained HTML, HTML + CSS + JS, or HTML + shared CSS (zip from the gallery, folder from the CLI) |
 | Views | Grid · Full screen · List · Compare (swipe, overlay, tournament, before/after) · Overview · Version tree · Variants map |
-| Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all; tall variants scroll inside their card (or switch to full height) |
+| Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all; tall variants scroll inside their card (or switch to full height); free card resizing; exclusive or in-page full screen |
 | Feedback | Selection, 👍/👎, notes per variant, comments on single elements, locked elements, inline copy edits, token overrides, checklist, reference images, screenshots |
 | Tuning | Round controls, fonts, CSS tokens, brand palette, states and content scenarios, light/dark |
 | Decisions | Approve · Request changes · Combine · More like this · Start over · Revoke · Ask for a component · Fix accessibility |
@@ -183,7 +191,7 @@ Every round is kept, grouped by product area and subject, with iterations nested
 | Real stacks | Project CSS via `/p/…`, Tailwind, URL variants from Storybook or your dev server |
 | Team | LAN or public (Cloudflare tunnel) review link with names and votes, or an offline voting gallery; guests can't decide |
 | Offline | `build` writes a single HTML file; decisions are copied to the clipboard |
-| Phone | QR codes for the gallery and for each variant, over the local network or a tunnel |
+| Phone | QR codes for the gallery and for each variant, over the local network or a tunnel; a phone layout with one variant at a time, swipe and bottom sheets |
 | Platforms | Dependency-free Node on macOS, Linux and Windows; one server for every project, a PIN per project |
 
 ## Installation
@@ -219,7 +227,6 @@ On Windows `~` is your user folder (`C:\Users\<you>`).
 | `--detected` | `-Detected` | Every agent found on this machine |
 | `--all` | `-All` | Every supported agent |
 | `--remote` / `--no-remote` | `-Remote` / `-NoRemote` | Turn remote sharing on (installs cloudflared if needed) or off, without asking |
-| `--designer` / `--no-designer` | `-Designer` / `-NoDesigner` | Also install DesignerSkill in the chosen agents, or skip the question |
 | `--project [DIR]` | `-Project DIR` | Install into a project (committable) instead of your user profile |
 | `--link` | `-Link` | Symlink / junction to your clone, so `git pull` updates every agent |
 | `--uninstall` | `-Uninstall` | Remove the skill from the chosen agents |
@@ -309,4 +316,4 @@ variant-studio/
   assets/demo-round/         sample round
 ```
 
-Made in collaboration with [DesignerSkill](https://github.com/Kekko16004/DesignerSkill). Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), written from scratch.
+Inspired by the Visual Companion in [superpowers](https://github.com/obra/superpowers), written from scratch.
