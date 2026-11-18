@@ -3,7 +3,7 @@ name: variant-studio
 description: Generate several design variants of any piece of UI — a single button, card, form, navbar, section, or full page — show them side by side in a live browser gallery, and let the user pick one, request changes, combine variants, or comment on specific elements, then continue from their structured decision. Use this whenever the user wants to explore, compare, or choose between design options or mockups ("show me a few versions", "give me some alternatives for this card", "fammi vedere delle varianti", "proposte di design", "quale layout è meglio", "redesign this component", "A/B options"), whenever a UI decision would be clearer seen than described, and whenever the user asks for a visual/browser companion or preview. Works in Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI and any agent that can run Node.js.
 ---
 
-# Variant Studio 3.5
+# Variant Studio 4.0
 
 A local gallery that turns "which design do you want?" into a visual decision. You write each variant as a small HTML file. The user sees them live in the browser, compares them (grid, full screen, list, swipe, overlay, A-vs-B tournament, overview of every round), tunes them (controls you declare, fonts, CSS tokens, brand palette, copy), comments on or locks single elements, and sends a decision. You read that decision as JSON and act on it.
 
@@ -21,7 +21,7 @@ If the user did not ask for a visual preview, offer it in one sentence the first
    ```bash
    STUDIO start --project "$PWD" --open
    ```
-   Prints `url` (with the `?k=` access key: always give the user the full URL). Calling it again reuses the running server. After a restart the port and key stay the same and the user's tab reconnects by itself. If your harness kills background processes, see `references/platforms.md`.
+   One server (port 8065, or the next free one) serves every project on the machine; `start` opens a session for this project. It prints `url` (`http://variant-studio.localhost:8065/<PIN>`, always give the user the full URL), `lan_url` (same session for a phone or another computer on the network), `pin` and `guest_pin`. The PIN is 5 characters and stays the same for the project across restarts, so the user's tab reconnects by itself. Calling `start` again reuses the server and the session. If your harness kills background processes, see `references/platforms.md`.
 
 2. **Create a round**: one round = one question with 2–4 variants.
    ```bash
@@ -53,7 +53,8 @@ If the user did not ask for a visual preview, offer it in one sentence the first
 
 6. **Act on the decision** (next section) and repeat from step 2 with `--parent` until the user approves.
 
-7. **Finish**: implement the approved variant in the real codebase. Keep listening for a while if you can: the user may revoke the approval (see `unapprove`). `STUDIO stop` when done; rounds stay on disk.
+7. **Finish**: implement the approved variant in the real codebase. Keep listening for a while if you can: the user may revoke the approval (see `unapprove`). `STUDIO stop` when done: it closes only this project's session (other agents' projects keep running; the server exits with the last one). Rounds stay on disk.
+   - If `wait` returns `{"type":"server-stopping","by":…}`, someone else stopped the studio (another agent ran `stop --all`, or the server was terminated). Tell the user; run `start` again only if they want to continue.
 
 ## Reading the decision
 
@@ -194,8 +195,8 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 
 | Command | Use |
 |---|---|
-| `start [--team] [--remote]` | Start or reuse the server. `--team` also serves it on the local network and prints `team_url`; `--remote` also opens a public link (see `share`). |
-| `share [--stop]` | Open a temporary public link (Cloudflare tunnel) and print `guest_url` for teammates outside the network; `--stop` closes it and invalidates every guest link. Needs cloudflared, which the installer offers. |
+| `start [--remote]` | Start or reuse the shared server and open this project's session. Prints `url`, `lan_url`, `pin`, `guest_pin` and `team_url` (the guest link on the local network: view and vote only). `--remote` also opens a public link (see `share`). |
+| `share [--stop]` | Open a temporary public link (Cloudflare tunnel) for this session and print `guest_url` for teammates outside the network (and `owner_url`, the user's own link); `--stop` closes it and changes the guest PIN, so every guest link stops working. Needs cloudflared, which the installer offers. |
 | `new <slug>` | Create a round (`--group`, `--title`, `--question`, `--kind`, `--viewports`, `--variants`, `--parent`). |
 | `present` | Check the latest round, print the URL, wait for the decision. |
 | `wait` | Wait for the next decision. Exit 2 = still waiting: run it again. |
@@ -204,7 +205,8 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 | `status`, `list`, `groups` | Server state, round history, existing group names. |
 | `errors` | JS and asset errors raised by previews. Check after writing variants. |
 | `build [--team]` | Self-contained `gallery.html` that works without a server. Decisions are copied to the clipboard. `--team` makes a voting gallery to send to teammates; they return a votes file the user imports. |
-| `open`, `demo`, `stop` | Reopen the gallery, add a sample round, stop the server (it also stops after 4 h idle). |
+| `open`, `demo` | Reopen the gallery (starts the session if needed), add a sample round. |
+| `stop [--all]` | Close this project's session; the server exits when no session is left (a session also closes after 4 h idle). `stop --all` lists every session and refuses: show the list to the user, ask, and only then run `stop --all --confirm`. The other sessions are told who stopped them. |
 
 ## What the user can do (to point them to it)
 
@@ -217,10 +219,13 @@ An `attr` knob sets `data-<attr>` on `<html>`: style it with `html[data-density=
 
 ## Troubleshooting
 
-- **403** → the URL was opened without `?k=…`. Give the full `url` again. Guest links (`team_url`, `guest_url`) only view and vote: decisions, uploads and project sources answer 403 to them by design.
+- **PIN page instead of the gallery** → the URL lacks the PIN or the session was stopped. Give the full `url` again (`…/<PIN>`), or run `start` if the page says there is no session with that PIN. On this computer the PIN page at `http://variant-studio.localhost:8065/` lists every active session. Guest links (`team_url`, `guest_url`, guest PIN) only view and vote: decisions, uploads and project sources answer 403 to them by design.
+- **`variant-studio.localhost` does not open** (some browsers or proxies do not resolve `*.localhost`) → use `http://127.0.0.1:<port>/<PIN>` (also printed by `status` as `loopback_url`).
+- **Port 8065 is taken** by another program → the server uses 8066, 8067…; always use the printed `url`.
+- **`stop --all` answered `confirm-required`** → by design: other projects (maybe other agents) are listed in `sessions`. Ask the user before adding `--confirm`.
 - **`share` fails** → `state: missing` means cloudflared is not installed, `disabled` means the user turned remote sharing off in `~/.variant-studio/config.json`. Tell them to re-run the installer with `--remote`; otherwise use `build --team`.
-- **"The studio server stopped"** → `STUDIO start` again; same port and key, the tab reconnects.
-- **Unreachable URL (remote, container)** → `start --host 0.0.0.0 --url-host <host>` or forward the port; otherwise `build`.
+- **"The studio server stopped"** → `STUDIO start` again; same PIN, the tab reconnects (if the port changed, give the new `url`).
+- **Phone or other computer cannot connect** → use `lan_url` on the same Wi-Fi; check the computer's firewall allows the port. Outside the network use `share`. For remote machines and containers: `start --url-host <host>` or forward the port; otherwise `build`.
 - **`present` says "Mockup mode" with `violations`** → the variants contain scripts, event handlers or project files. Remove them; do not switch mode unless the user asked for working prototypes.
 - **Blank variant** → `STUDIO errors`; look for an unclosed tag or an asset path that should be `/p/…`.
 - **Wrong preview height in a full document** → avoid `height: 100vh` on `body` in component and section rounds.

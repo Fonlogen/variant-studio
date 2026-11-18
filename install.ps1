@@ -1,5 +1,5 @@
 <#
-  Variant Studio 3.5 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
+  Variant Studio 4.0 - installer and updater for Windows (PowerShell 5.1+ / PowerShell 7, also works on macOS/Linux pwsh).
 
     .\install.ps1                              interactive: pick agents, remote sharing, scope and mode
     .\install.ps1 -Agents claude,codex         non-interactive
@@ -11,7 +11,7 @@
     .\install.ps1 -Link                        junction instead of copy (updates with `git pull`)
     .\install.ps1 -Uninstall -Agents claude
     .\install.ps1 -List                        show agents and paths
-    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0, 3.1, 3.5...) instead of the latest
+    .\install.ps1 -Version 2.0                 install a specific release (1.0, 2.0, 3.0, 3.1, 3.5, 4.0...) instead of the latest
 
   Running it again updates an existing install: the old files are replaced, your config files are kept.
 
@@ -105,9 +105,11 @@ function Get-Target($a) {
   return J (J $UserHome $a.Global) $Skill
 }
 function Get-SkillVersion([string]$dir) {
-  $f = Join-Path $dir 'scripts/studio.mjs'
+  # 4.0+ keeps the version in scripts/lib/config.mjs
+  $f = Join-Path $dir 'scripts/lib/config.mjs'
+  if (-not (Test-Path -LiteralPath $f)) { $f = Join-Path $dir 'scripts/studio.mjs' }
   if (-not (Test-Path -LiteralPath $f)) { return '' }
-  $m = Select-String -LiteralPath $f -Pattern "^const VERSION = '([^']*)'" | Select-Object -First 1
+  $m = Select-String -LiteralPath $f -Pattern "^(?:export )?const VERSION = '([^']*)'" | Select-Object -First 1
   if ($m) { return $m.Matches[0].Groups[1].Value } else { return '' }
 }
 function Test-IsLink([string]$p) {
@@ -287,7 +289,7 @@ if ($List) {
 }
 
 Write-Host ''
-Write-Host 'Variant Studio ' -NoNewline; Write-Host '3.5' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
+Write-Host 'Variant Studio ' -NoNewline; Write-Host '4.0' -ForegroundColor DarkYellow -NoNewline; Write-Host ' installer'
 Say "Installs or updates the '$Skill' skill in your coding agents." 'DarkGray'
 Write-Host ''
 

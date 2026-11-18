@@ -109,7 +109,8 @@ const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
 const VIEWS = ['grid', 'focus', 'list', 'compare', 'overview', 'tree', 'map'];
 const SPECIAL_VIEWS = ['tree', 'overview', 'map']; // views across rounds, without a dock or a single round
 const store = {
-  key: 'vs3:' + (STATIC ? STATIC.project : location.host),
+  // one origin serves every project (sessions at /<PIN>/): key the saved state by project too
+  key: 'vs3:' + (STATIC ? STATIC.project : location.host + (window.__VS_SID__ ? '/' + window.__VS_SID__ : '')),
   load() { try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; } },
   save(o) { try { localStorage.setItem(this.key, JSON.stringify(o)); } catch {} },
 };

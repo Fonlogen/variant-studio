@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Variant Studio 3.5 — installer and updater for Linux and macOS.
+# Variant Studio 4.0 — installer and updater for Linux and macOS.
 #
 #   ./install.sh                         interactive: pick agents, remote sharing, scope and mode
 #   ./install.sh --agents claude,codex   non-interactive
@@ -11,7 +11,7 @@
 #   ./install.sh --link                  symlink instead of copy (updates with `git pull`)
 #   ./install.sh --uninstall --agents claude
 #   ./install.sh --list                  show agents and paths
-#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0, 3.1, 3.5…) instead of the latest
+#   ./install.sh --version 2.0           install a specific release (1.0, 2.0, 3.0, 3.1, 3.5, 4.0…) instead of the latest
 #
 # Running it again updates an existing install: the old files are replaced, your config files are kept.
 #
@@ -110,8 +110,9 @@ target_for() { # entry -> install dir (or the zip for Claude Desktop)
   elif [ "$SCOPE" = project ]; then printf '%s/%s/%s' "$PROJECT" "$(field "$1" 4)" "$SKILL"
   else printf '%s/%s/%s' "$HOME" "$(field "$1" 3)" "$SKILL"; fi
 }
-version_of() { # skill dir -> version string, or empty
-  [ -f "$1/scripts/studio.mjs" ] && sed -n "s/^const VERSION = '\([^']*\)'.*/\1/p" "$1/scripts/studio.mjs" | head -n1
+version_of() { # skill dir -> version string, or empty (4.0+ keeps it in scripts/lib/config.mjs)
+  local f="$1/scripts/lib/config.mjs"; [ -f "$f" ] || f="$1/scripts/studio.mjs"
+  [ -f "$f" ] && sed -n "s/^\(export \)\{0,1\}const VERSION = '\([^']*\)'.*/\2/p" "$f" | head -n1
 }
 
 if [ "$LIST" = 1 ]; then
@@ -126,7 +127,7 @@ if [ "$LIST" = 1 ]; then
 fi
 
 say ""
-say "${B}Variant Studio ${O}3.5${N}${B} installer${N}"
+say "${B}Variant Studio ${O}4.0${N}${B} installer${N}"
 say "${D}Installs or updates the '$SKILL' skill in your coding agents.${N}"
 say ""
 

@@ -4,6 +4,14 @@ To install the skill itself into one or more agents, use `install.sh` (Linux/mac
 
 The server must stay alive across turns. `STUDIO start` normally detaches it and returns immediately, which works in most harnesses. If your harness kills detached processes when a command ends, run it in the foreground **through the harness's own background mechanism**.
 
+## One server, one session per project
+- A single server serves every project on the machine: port 8065 by default, 8066, 8067… if another program holds it. A Variant Studio server already running is reused. `--port N` changes where the search starts.
+- `start --project X` opens a session for X. Each session has a 5-character owner PIN and a separate guest PIN (letters and digits without 0, O, 1, I), saved in `<project>/.variant-studio/state/session.json`, so they survive restarts.
+- Gallery URL: `http://variant-studio.localhost:<port>/<PIN>`; `http://<host>:<port>/?pin=<PIN>` works too. The root without a PIN shows a PIN form; opened on this computer it also lists the active sessions (project, path, PIN, agent listening, last activity).
+- Every gallery route lives under `/<PIN>/` (`/<PIN>/api/state`, `/<PIN>/v/…`). Absolute paths used by the gallery and by variants (`/api/…`, `/p/…`) are routed by the page's `Referer` (and the `vs_pin` cookie as a fallback), so tabs of different projects never mix. A variant opens directly with `/<PIN>?round=<id>&v=<variant>&focus=1`.
+- The server listens on all interfaces (`0.0.0.0`) so phones on the same network can use `lan_url`; the PIN is always required. `--host 127.0.0.1` keeps it local.
+- `stop` closes the current project's session only; the server exits when none is left (each session also closes after `--idle` minutes, default 240, without activity). `stop --all` lists the sessions and refuses without `--confirm`: ask the user first. The other sessions' galleries show who stopped them and their `wait` returns `{"type":"server-stopping","by":…}`.
+
 ## Claude Code
 ```bash
 node <skill>/scripts/studio.mjs start --project "$PWD" --open
@@ -30,7 +38,7 @@ Mockup mode is on by default and enforced by `present`: write static HTML design
 ```bash
 node <skill>/scripts/studio.mjs start --project "$PWD" --open --foreground
 ```
-with `is_background: true` on the shell tool call. Read `.variant-studio/state/server.json` for the URL. Install in `~/.gemini/skills/variant-studio/` or `.gemini/skills/variant-studio/`.
+with `is_background: true` on the shell tool call. If the shared server is already running, `--foreground` only opens the session and exits. Read `.variant-studio/state/server.json` for the URL. Install in `~/.gemini/skills/variant-studio/` or `.gemini/skills/variant-studio/`.
 
 ## Copilot CLI / Cursor / Windsurf / others
 Use the default `start`. If the harness reaps it, use `--foreground` with the harness's background execution. Cursor reads `.agents/skills/` and `~/.cursor/skills/`; Copilot CLI reads `~/.copilot/skills/`. For agents without skill support, paste `agents-snippet.md` into their instructions file.
@@ -42,10 +50,11 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 `present` and `wait` return after `--timeout` seconds (default 110, safe under most shell limits) with exit code 2 and `{"type":"still-waiting"}`. Run `wait` again immediately and keep going until a decision arrives; never end the turn because of exit 2. The studio shows the user whether you are listening.
 
 ## Team review
-- Same network: `start --team` serves the studio on all interfaces and prints `team_url`. Teammates open it, enter their name, vote and comment; votes go into the decision as `team_votes`.
-- Outside the network: `share` (or `start --remote`) opens a Cloudflare quick tunnel and prints `guest_url`, a temporary `https://….trycloudflare.com` link. No Cloudflare account is needed. `share --stop` closes it; the guest key changes, so old links stop working. The user can do the same from the Team panel.
+- Same network: `start` prints `team_url`, the guest link on the LAN (`http://<lan-ip>:<port>/<guest PIN>`). Teammates open it, enter their name, vote and comment; votes go into the decision as `team_votes`.
+- Outside the network: `share` (or `start --remote`) opens a Cloudflare quick tunnel and prints `guest_url`, a temporary `https://….trycloudflare.com/<guest PIN>` link. No Cloudflare account is needed. One tunnel serves the whole server, but only sessions that turned sharing on answer through it. `share --stop` closes it for this session; the guest PIN changes, so old links stop working. The user can do the same from the Team panel.
+- `GET /<PIN>/api/share` (owner only) returns `{ pin, guest_pin, urls: { local, lan, tunnel }, guest_urls: { local, lan, tunnel }, variant_url_template: "{url}?round={round}&v={variant}&focus=1", remote }` for the QR dialog; `GET /api/qr?text=…` returns the QR code as SVG.
 - Anywhere, offline: `build --team` writes a voting gallery. Teammates download a votes file and the user imports it from the Team panel.
-- Guests (both `team_url` and `guest_url` carry the guest key `g=`, never the owner key `k=`) can view rounds, vote, comment and export images. They cannot send decisions, upload references, change settings or read project files through `/p/` (only CSS, fonts and images).
+- Guests (both `team_url` and `guest_url` carry the guest PIN, never the owner PIN) can view rounds, vote, comment and export images. They cannot send decisions, upload references, change settings or read project files through `/p/` (only CSS, fonts and images).
 
 ## User configuration
 `~/.variant-studio/config.json` (written by the installer) holds settings for every project:
@@ -60,13 +69,15 @@ No bash needed: run the same `node …studio.mjs …` commands from PowerShell o
 `remote.enabled: false` turns `share` off. `cloudflared` is optional: without it the studio looks in PATH, `~/.variant-studio/bin`, Homebrew and Program Files. A `config.json` inside the skill folder is read too and survives updates.
 
 ## Remote machines, containers, WSL
-- Bind to all interfaces and print a reachable host: `start --host 0.0.0.0 --url-host <hostname-or-ip>`.
-- Or forward the port (`ssh -L <port>:127.0.0.1:<port> host`) and keep the default host.
+- The server already binds all interfaces; print a reachable host with `start --url-host <hostname-or-ip>`.
+- Or forward the port (`ssh -L 8065:127.0.0.1:8065 host`) and open `http://127.0.0.1:8065/<PIN>`.
 - If nothing is reachable, `build` writes a static `gallery.html`; decisions are copied to the clipboard as a JSON block that the user pastes into chat.
 
 ## Where things are
-- `.variant-studio/state/server.json` — url, port, key, guest key, pid, `team_url`, `remote_url`.
-- `.variant-studio/state/server.log` — server output when detached.
+- `~/.variant-studio/server.json` — the shared server: pid, port, control token (owner-only file), active sessions. `~/.variant-studio/server.log` — server output when detached.
+- `.variant-studio/state/session.json` — this project's PIN and guest PIN.
+- `.variant-studio/state/server.json` — url, lan_url, port, pin, guest_pin, pid, `team_url`, `remote_url`.
+- `.variant-studio/state/notice.json` — set when someone else stopped this session; `wait` returns it once.
 - `.variant-studio/state/events.jsonl` — every decision ever sent.
 - `.variant-studio/state/inbox/` — the decision queue.
 - `.variant-studio/state/errors.jsonl` — preview errors.

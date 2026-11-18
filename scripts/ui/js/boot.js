@@ -83,21 +83,21 @@ addEventListener('keydown', (e) => {
 });
 
 // ---------------- live connection ----------------
-let es = null, offlineT = 0, uiSeen = null;
+let es = null, offlineT = 0, uiSeen = null, stoppedBy = '';
 function setConn(ok) {
   $('#conn').className = 'conn ' + (ok ? 'on' : 'off');
   $('#conn').title = ok ? t('Connected to the studio') : t('Disconnected: retrying…');
   const b = $('#banner');
   if (ok) { clearTimeout(offlineT); b.classList.remove('show'); return; }
   clearTimeout(offlineT);
-  offlineT = setTimeout(() => { b.textContent = t('The studio server stopped. Ask the agent to run `start` again: this tab reconnects by itself.'); b.classList.add('show'); }, 2500);
+  offlineT = setTimeout(() => { b.textContent = stoppedBy ? t('The studio was stopped by {x}. Ask your agent to run `start` again: this tab reconnects by itself.', { x: stoppedBy }) : t('The studio server stopped. Ask the agent to run `start` again: this tab reconnects by itself.'); b.classList.add('show'); }, 2500);
 }
 function connect() {
   if (STATIC) { $('#conn').className = 'conn static'; $('#conn').title = t('Offline gallery'); return; }
   es?.close();
   es = new EventSource('/api/stream');
   es.addEventListener('hello', (e) => {
-    setConn(true);
+    stoppedBy = ''; setConn(true);
     try {
       const d = JSON.parse(e.data);
       // the studio was updated while this tab was open: reload to get the new interface (drafts are in localStorage)
@@ -109,6 +109,8 @@ function connect() {
   es.addEventListener('change', () => refresh());
   es.addEventListener('decision', () => refresh());
   es.addEventListener('agent', (e) => { try { S.data.agent = JSON.parse(e.data); } catch {} renderAgent(); renderSent(); });
+  // another agent ran `stop --all`, or the server is shutting down
+  es.addEventListener('server-stopping', (e) => { try { const d = JSON.parse(e.data); stoppedBy = d.by || ''; } catch {} });
   es.onerror = () => setConn(false);
   es.onopen = () => setConn(true);
 }
@@ -117,7 +119,18 @@ function connect() {
 setUi(S.ui);
 applyI18n();
 if (TEAM) document.body.classList.add('team');
+// deep link to a variant: /<PIN>?round=<id>&v=<variant>&focus=1
+function openFromUrl() {
+  const r = round(QS.get('round')) || (QS.get('v') ? round() : null);
+  if (!r) return;
+  if (r.id !== S.roundId) selectRound(r.id);
+  const v = QS.get('v') && r.variants.find(x => x.id === QS.get('v'));
+  if (!v) return;
+  const fk = r.id + '/' + v.id;
+  if (QS.get('focus') === '1') openFocus(fk); else { S.active = fk; renderRound(); }
+}
 refresh(true).then(() => {
+  openFromUrl();
   connect();
   renderDock(); renderInspector();
   if (TEAM && !S.voter) askVoterName();
