@@ -19,7 +19,7 @@ It works with Claude Code, Claude Desktop, Codex, Antigravity, Gemini CLI, Kilo 
     <td width="50%"><img src="assets/screenshots/map.png" alt="Variants map: the chosen variant of each round and the branches between rounds"><br><sub><b>Variants map</b>: what you chose in every round and where it led</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="assets/screenshots/focus.png" alt="Full screen view of one variant with a filmstrip"><br><sub><b>Full screen</b> with filmstrip and arrow keys</sub></td>
+    <td width="50%"><img src="assets/screenshots/focus.png" alt="Full screen view of one variant"><br><sub><b>Full screen</b> with arrow keys</sub></td>
     <td width="50%"><img src="assets/screenshots/light.png" alt="The studio in its light theme"><br><sub><b>Light theme</b>, and the interface in five languages</sub></td>
   </tr>
 </table>
@@ -82,6 +82,24 @@ curl -fsSL https://raw.githubusercontent.com/Fonlogen/variant-studio/main/instal
 5. The agent reads your decision and continues. It keeps listening while you look, and the studio shows whether it is.
 
 Every round is kept, grouped by product area and subject, with iterations nested under the round they came from.
+
+## What's new in 4.0
+
+- **One studio for all your projects.** A single server on port 8065 (8066, 8067… if it is taken) serves every project. Each project gets a 5-character PIN that stays the same between restarts: open `http://variant-studio.localhost:8065/X91Z4`, or `?pin=X91Z4`. Opening the address without a PIN asks for one; on your own computer it also lists the active sessions.
+- **Open it on your phone.** The *Phone* button shows a QR code for the whole gallery, and every card has one for its variant. Pick local network or tunnel, and owner (decides) or guest (looks and votes).
+- **Stopping is polite.** `stop` closes only the current project. The server exits when no project is left. `stop --all` lists the other sessions and needs `--confirm`, so the agent asks you first; the other sessions are told.
+- **Design modes**, set per round with `--design`, shown next to the title:
+  - `tui`: the variant runs inside a terminal. Acrylic window, tabs, tmux, plain black, Ubuntu, CMD, PowerShell, Windows Terminal. Nerd Fonts or your own fonts, opacity, blur, wallpaper (`.variant-studio/wallpaper.*` or the bundled one), a prompt you can type in with your user and host name.
+  - `app`: CSS phones. iPhone 8, X, 18; Pixel 3, 6, 8, 10 Pro; Galaxy S25 and S25 Ultra. Realistic, flat or clay frames.
+  - `desktop`: window frames for macOS (current, Yosemite, Leopard, Aqua), Windows 11, 8/10, 7, XP, Ubuntu GNOME and KDE Plasma, at four window sizes, with or without the desktop around them.
+  - `logo`: the mark as a favicon in a browser tab, iOS and Android icons, sizes from 16 to 128, light, dark and monochrome.
+  - Styles live in one grouped picker for the round, and any variant can override them from its ⋯ menu.
+- **Logo and image tools** for the agent: `logo-export` (SVG, PNG 16–1024, favicon.ico, apple-touch-icon, maskable, manifest), `palette`, `fonts`, and `image` (OpenAI gpt-image, key in `OPENAI_API_KEY` or `~/.variant-studio/config.json`).
+- **Export a variant** as one self-contained HTML file, as `index.html` + `style.css` + `script.js`, or with the shared CSS in its own file.
+- **A lighter studio.** Dark by default with an orange accent, lower bars, flat sidebar rows. The prompt is a pill at the bottom right: it shows the usual actions, opens upward when you write, and can be hidden. Cards keep their natural height; full screen is real full screen.
+- **Your layout, your background.** Resize any card by its edge or corner (double-click resets). Pick the canvas behind the variants: light, gray, dark, black, checkerboard or any color.
+- **Fix accessibility in one click.** In the audit, *Ask the agent to fix them* sends the issues of one variant, or all of them, and the agent edits the files in place.
+- New logo.
 
 ## What's new in 3.5
 
@@ -159,13 +177,14 @@ Every round is kept, grouped by product area and subject, with iterations nested
 | Viewport | Fit, mobile, tablet, laptop, desktop or custom width, per round; device frames; zoom per card or for all; tall variants scroll inside their card (or switch to full height) |
 | Feedback | Selection, 👍/👎, notes per variant, comments on single elements, locked elements, inline copy edits, token overrides, checklist, reference images, screenshots |
 | Tuning | Round controls, fonts, CSS tokens, brand palette, states and content scenarios, light/dark |
-| Decisions | Approve · Request changes · Combine · More like this · Start over · Revoke · Ask for a component |
+| Decisions | Approve · Request changes · Combine · More like this · Start over · Revoke · Ask for a component · Fix accessibility |
 | Agent link | Queued decisions, undo window, presence indicator, `present` / `wait` that never give up on their own |
 | Quality | JS errors and an accessibility audit (contrast, touch targets, alt text, labels, overflow) for you and the agent |
 | Real stacks | Project CSS via `/p/…`, Tailwind, URL variants from Storybook or your dev server |
 | Team | LAN or public (Cloudflare tunnel) review link with names and votes, or an offline voting gallery; guests can't decide |
 | Offline | `build` writes a single HTML file; decisions are copied to the clipboard |
-| Platforms | One dependency-free Node file on macOS, Linux and Windows |
+| Phone | QR codes for the gallery and for each variant, over the local network or a tunnel |
+| Platforms | Dependency-free Node on macOS, Linux and Windows; one server for every project, a PIN per project |
 
 ## Installation
 
@@ -246,7 +265,7 @@ Click a card's letter or press `1`–`9` to select it. Press `C` and click an el
 
 ## Team review
 
-- **Same network:** ask the agent to start the studio with `start --team`. The Team panel shows a link; teammates open it, enter their name, vote and comment. Their votes go to the agent with your decision, and your choice still wins.
+- **Same network:** the studio already listens on your network, always behind the PIN. The Team panel and the *Phone* QR give a guest link; teammates open it, enter their name, vote and comment. Their votes go to the agent with your decision, and your choice still wins.
 - **Outside your network:** open the Team panel and press *Share outside your network*, or ask the agent to run `share`. You get a temporary `https://….trycloudflare.com` link (no Cloudflare account needed). *Stop sharing* closes it and every link handed out stops working. Needs remote sharing turned on in the installer.
 - **Offline:** ask for `build --team` and send the HTML file. Teammates vote offline and download a votes file, which you import from the Team panel.
 
@@ -254,13 +273,14 @@ Teammates are guests: they can look, vote, comment and export images, but they c
 
 ## Files in your project
 
-Everything lives in `.variant-studio/`, added to `.gitignore` automatically:
+Everything lives in `.variant-studio/`, added to `.gitignore` automatically. Sessions, PINs and your settings live in `~/.variant-studio/`.
 
 ```
 .variant-studio/
   global.css              optional design-system tokens for every round
   brand.json              your brand palette and fonts (Settings)
   settings.json           mockup/prototype mode, subagents and their models (Settings → Generation)
+  wallpaper.png           optional wallpaper behind TUI terminals
   rounds/001-product-card/
     round.json            group, question, kind, viewports, controls, labels and notes
     a.html b.html c.html
@@ -277,10 +297,14 @@ variant-studio/
   SKILL.md                   instructions for the agent
   agents-snippet.md          the same, short, for AGENTS.md / GEMINI.md
   install.sh  install.ps1  install.cmd
-  scripts/studio.mjs         CLI and server, no dependencies
+  scripts/studio.mjs         CLI entry point, no dependencies
+  scripts/lib/               server, sessions and PINs, rounds, decisions, export, logo tools, tunnel, QR
   scripts/ui/                the studio: app.html, app.css, js/, frame.js (runs inside previews), base.css
+  scripts/ui/shell/          terminal, phone, desktop and logo wrappers for the design modes
+  scripts/ui/vendor/         QR encoder (MIT)
   references/                round.json schema, platforms, frameworks
   assets/brand/              logo, mark and app icon (SVG)
+  assets/wallpapers/         default TUI wallpaper
   assets/screenshots/        images for this README (not installed)
   assets/demo-round/         sample round
 ```

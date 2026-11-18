@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — Russian UI strings (keys are the English text).
+// Variant Studio 4.0 — Russian UI strings (keys are the English text).
 'use strict';
 I18N.ru = {
   '2× is sharp on retina screens; 3× for print and slides.': '2× — чётко на экранах Retina; 3× — для печати и слайдов.',
