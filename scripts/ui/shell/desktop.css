@@ -1,6 +1,6 @@
 /* Desktop window frames, pure CSS. Generic glyphs only: no vendor logos, icons or wallpapers. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; background: transparent; }
+html, body { margin: 0; background: transparent; overflow: hidden; } /* the gallery sizes this page to its content: a scrollbar here would loop */
 body { font: 12px/1.3 system-ui, -apple-system, "Segoe UI", Ubuntu, Cantarell, sans-serif; -webkit-font-smoothing: antialiased; }
 .dk { padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .dk.c-light { background: linear-gradient(180deg, #ececef, #dfe0e4); } .dk.c-dark { background: #121316; } .dk.c-white { background: #fff; }

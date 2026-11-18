@@ -70,7 +70,7 @@ Every round is kept, grouped by product area and subject, with iterations nested
 ## What's new in 4.0
 
 **One studio for every project**
-- A single server on port 8065 (8066, 8067… if it is taken) serves all your projects. Each project is a session with its own 5-character PIN, stable across restarts: `http://variant-studio.localhost:8065/X91Z4`, or `?pin=X91Z4`.
+- A single server on port 8065 (8066, 8067… if it is taken) serves all your projects. Each project is a session with its own 5-character PIN, stable across restarts: `http://variant-studio.localhost:8065/X91Z4`, or `?pin=X91Z4`. When port 80 is free and allowed (macOS, or with admin rights) the studio answers there too and the links drop the port: `http://variant-studio.localhost/X91Z4`.
 - Opening the address without a PIN asks for one. On your own computer the same page lists the active sessions.
 - `stop` closes only the current project; the server exits when no project is left. `stop --all` lists the other sessions and needs `--confirm`, so the agent asks you first, and the other sessions are told.
 

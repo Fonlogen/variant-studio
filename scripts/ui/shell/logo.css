@@ -1,6 +1,6 @@
 /* Logo canvas: the variant, then how the mark lives in the wild. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; background: transparent; }
+html, body { margin: 0; background: transparent; overflow: hidden; } /* the gallery sizes this page to its content: a scrollbar here would loop */
 body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: #1d1e22; -webkit-font-smoothing: antialiased; }
 .lg { overflow: hidden; background: #f4f4f6; }
 .lg.c-dark { background: #0f1013; color: #eceef2; } .lg.c-white { background: #fff; }

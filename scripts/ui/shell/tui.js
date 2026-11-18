@@ -157,11 +157,14 @@
     fitWin();
   };
   // the screen keeps its columns like a real terminal; a narrow card scales the whole window down instead of wrapping it
+  let lastScale = 0, lastW = 0, lastH = 0;
   function fitWin() {
     const w = win.offsetWidth, h = win.offsetHeight, pad = parseFloat(getComputedStyle(st).paddingLeft) || 0;
-    const s = Math.min(1, (st.clientWidth - 2 * pad) / w);
+    const s = Math.min(1, Math.floor((st.clientWidth - 2 * pad) / w * 1000) / 1000);
+    if (s === lastScale && w === lastW && h === lastH) return;
+    lastScale = s; lastW = w; lastH = h;
     win.style.transform = s < 1 ? `scale(${s})` : '';
-    tfit.style.width = w * s + 'px'; tfit.style.height = h * s + 'px';
+    tfit.style.width = Math.round(w * s) + 'px'; tfit.style.height = Math.round(h * s) + 'px';
   }
   new ResizeObserver(fitWin).observe(win);
   document.fonts?.addEventListener('loadingdone', fitWin);

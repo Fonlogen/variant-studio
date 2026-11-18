@@ -1,6 +1,6 @@
 /* Phone frame: realistic hardware (default), flat outline, clay. Drawn in CSS, no vendor images. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; background: transparent; }
+html, body { margin: 0; background: transparent; overflow: hidden; } /* the gallery sizes this page to its content: a scrollbar here would loop */
 body { font: 13px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 .cv { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 12px 16px; }
 .cv.c-light { background: radial-gradient(80% 60% at 50% 0%, #f7f7f9, transparent 70%), linear-gradient(180deg, #ececef, #dfe0e4); }

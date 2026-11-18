@@ -85,7 +85,8 @@ export async function serve(o = {}) {
   const token = crypto.randomBytes(16).toString('hex');
   const bootAt = Date.now();
   const sessions = new Map(), guests = new Map(); // owner PIN -> session, guest PIN -> session
-  let port = 0, stopping = false, watcher = null, savedAt = 0;
+  let port = 0, port80 = false, lan80 = false, stopping = false, watcher = null, savedAt = 0;
+  const localBase = () => `http://${urlHost}${port80 ? '' : ':' + port}`;
 
   const find = (pin) => sessions.has(pin) ? [sessions.get(pin), 'owner'] : guests.has(pin) ? [guests.get(pin), 'guest'] : [null, null];
   const taken = (except) => new Set([...sessions.values()].filter((s) => s !== except).flatMap((s) => [s.pin, s.guest]));
@@ -93,7 +94,7 @@ export async function serve(o = {}) {
   const lan = () => (host === '0.0.0.0' ? lanAddress() : null);
   const urlsFor = (s, pin) => {
     const t = tunnel.state();
-    return { local: `http://${urlHost}:${port}/${pin}`, lan: lan() ? `http://${lan()}:${port}/${pin}` : null, tunnel: s.remote && t.url ? `${t.url}/${pin}` : null };
+    return { local: `${localBase()}/${pin}`, lan: lan() ? `http://${lan()}${lan80 ? '' : ':' + port}/${pin}` : null, tunnel: s.remote && t.url ? `${t.url}/${pin}` : null };
   };
   const lastActivity = (s) => Math.max(s.lastActivity, readJSON(s.P.agent)?.beat || 0);
   const brief = (s) => ({ project: s.P.root, name: s.P.name, pin: s.pin, guest_pin: s.guest, agent: agentStatus(s.P).state, last_activity: lastActivity(s), started: s.started, remote: s.remote });
@@ -403,7 +404,7 @@ export async function serve(o = {}) {
         return redirect(res, `/${q}/${u.search}`);
       } else {
         pin = implicitPin(req);
-        if (!pin) { res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end(`Variant Studio ${VERSION}: open the studio from its link (http://${urlHost}:${port}/<PIN>).`); }
+        if (!pin) { res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end(`Variant Studio ${VERSION}: open the studio from its link (${localBase()}/<PIN>).`); }
         // pages and assets move under /<PIN>/ so whatever they load next stays in the same session
         if (req.method === 'GET' && !p.startsWith('/api/')) return redirect(res, `/${pin}${p}${u.search}`, 307);
         rest = p;
@@ -441,6 +442,13 @@ export async function serve(o = {}) {
     else await new Promise((r) => server.close(r));
   }
   if (!port) { print({ type: 'error', message: `no free port between ${first} and ${first + 19}` }); process.exit(1); }
+  // on this computer the studio also answers on port 80, so the link needs no port; the network and the tunnel stay on `port`
+  if (!o.port && !o['no-port80']) {
+    const handler = server.listeners('request')[0];
+    const bind = (h) => new Promise((resolve) => { const s80 = http.createServer(handler); s80.once('error', () => resolve(false)); s80.listen(80, h, () => resolve(true)); });
+    // macOS lets any user take port 80 only on every address; elsewhere it usually needs admin rights, and then the port stays in the link
+    for (const h of host === '0.0.0.0' ? ['::', '0.0.0.0', '127.0.0.1'] : ['127.0.0.1']) if (await bind(h)) { port80 = true; lan80 = h !== '127.0.0.1'; break; }
+  }
   saveRegistry();
 
   watcher = setInterval(() => {

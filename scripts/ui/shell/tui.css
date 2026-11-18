@@ -1,6 +1,6 @@
 /* Terminal shell: acrylic window (default), tabs, tmux, and the OS defaults (plain, Ubuntu, CMD, PowerShell, Windows Terminal). The terminal is the point: chrome stays slim. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; background: transparent; }
+html, body { margin: 0; background: transparent; overflow: hidden; } /* the gallery sizes this page to its content: a scrollbar here would loop */
 body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 :where(#vs-shell) { --mono: var(--vs-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); --op: .58; --blur: 24px; --fs: 13px;
   --fg: #e6e9f2; --dim: #9aa0b4; --line: rgba(255,255,255,.08); --acc: #c6a6ff; --acc2: #3a3f62; --ok: #8fdca6; --win: 22, 24, 38; }
