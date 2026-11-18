@@ -263,6 +263,8 @@ body.fs #view { height: 100%; }
 .focus .card .stage { flex: 1; margin: 0; border-radius: 0; align-items: center; }
 .focus .card-f.show { position: absolute; left: 12px; bottom: 12px; width: min(420px, calc(100% - 24px)); background: var(--surf); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 10px; z-index: 5; }
 body.fs .film { display: none; }
+body.fs-page #stage { padding-bottom: 72px; overflow: hidden; }
+body.fs-page #view { height: 100%; min-height: 0; }
 .film { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 10px 0 4px; }
 .th { width: 132px; border: 0; padding: 0; background: none; display: flex; flex-direction: column; gap: 6px; align-items: stretch; color: var(--ink-2); font-size: 12px; text-align: left; }
 .th .box { height: 82px; border-radius: var(--r-sm); background: var(--stage-img, none) 0 0 / 16px 16px var(--stage); overflow: hidden; position: relative; outline: 2px solid transparent; outline-offset: 2px; }

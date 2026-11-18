@@ -133,7 +133,7 @@ const S = {
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
   drawer: saved.drawer !== false, ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
   insp: !!saved.insp, inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
-  showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false,
+  showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false, fsMode: saved.fsMode === 'page' ? 'page' : 'screen',
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
   fonts: saved.fonts || { heading: '', body: '' }, knobs: saved.knobs || {}, rstate: saved.rstate || {},
   ovScope: saved.ovScope || 'group', ovSize: saved.ovSize || 260, mapSubj: saved.mapSubj || '', mapSize: saved.mapSize || 260, voter: saved.voter || '', myVotes: saved.myVotes || {}, exportScale: saved.exportScale || 2,
@@ -143,7 +143,7 @@ const S = {
 const persist = () => store.save({
   layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, overflow: S.overflow, theme: S.theme, canvas: S.canvas, sync: S.sync, device: S.device,
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
-  collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
+  collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, fsMode: S.fsMode, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
   fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
   canvasColor: S.canvasColor, cardSizes: S.cardSizes, cardPreset: S.cardPreset, promptHidden: S.promptHidden,
 });

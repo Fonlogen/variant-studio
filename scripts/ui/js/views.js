@@ -312,13 +312,15 @@ function resizeHandles(card, fk) {
 
 // Full screen: one variant over the whole screen (Fullscreen API on the document, so menus, toasts and the prompt
 // stay usable). When the browser refuses (no user gesture, iframe, iPhone) the same layout is a fixed overlay.
+// S.fsMode 'page' keeps the studio around the variant and only lets it take the page height (like 3.x)
 function enterFullscreen() {
+  if (S.fsMode === 'page') { document.body.classList.add('fs-page'); return; }
   document.body.classList.add('fs');
   const el = document.documentElement;
   if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
 }
 function leaveFullscreen() {
-  document.body.classList.remove('fs');
+  document.body.classList.remove('fs', 'fs-page');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 // Esc in real full screen is taken by the browser: follow it back to the gallery
@@ -330,6 +332,12 @@ function openFocus(fk) {
   enterFullscreen();
   renderRail(); renderRound(true); $('#stage').scrollTop = 0;
 }
+function setFsMode(m) {
+  S.fsMode = m; persist();
+  if (S.layout !== 'focus') return toast(m === 'page' ? t('Full screen expands inside the page') : t('Full screen covers the whole screen'));
+  leaveFullscreen(); enterFullscreen(); renderRound(true); requestAnimationFrame(layoutFrames);
+}
+const fsModeBtn = (ib) => S.fsMode === 'page' ? ib('expand', t('Exclusive full screen'), () => setFsMode('screen')) : ib('fit', t('Expand inside the page instead'), () => setFsMode('page'));
 function closeFocus() { leaveFullscreen(); S.layout = S.prevLayout || 'grid'; renderRail(); renderRound(true); requestAnimationFrame(() => $('#stage').scrollTop = S.scrollBack || 0); }
 function stepFocus(dir) {
   const c = ctx(); if (!c) return;
@@ -395,7 +403,7 @@ function buildCard(c, it, opts = {}) {
     ib('up', t('Vote up'), () => teamVote(it, 'up'), { 'data-tv': 'up' }),
     ib('down', t('Vote down'), () => teamVote(it, 'down'), { 'data-tv': 'down' }),
     ib('comment', t('Comment'), () => { S.cmOpen[fk] = !S.cmOpen[fk]; updateCards(); }, { 'data-cm': '' }),
-    opts.focus ? ib('shrink', t('Exit full screen (Esc)'), () => closeFocus()) : ib('expand', t('Full screen (Z)'), () => openFocus(fk)),
+    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk))]),
   ] : [
     ib('up', t('Like'), () => rate(fk, 1), { 'data-rate': 'up', hov: true }),
     ib('down', t('Dislike'), () => rate(fk, -1), { 'data-rate': 'down', hov: true }),
@@ -403,7 +411,7 @@ function buildCard(c, it, opts = {}) {
     ib('comment', t('Note on this variant'), () => { S.cmOpen[fk] = !S.cmOpen[fk]; updateCards(); if (S.cmOpen[fk]) setTimeout(() => card.querySelector('textarea.cm')?.focus()); }, { 'data-cm': '' }),
     STATIC ? null : ib('qr', t('Open this variant on your phone'), (e) => openQr(e.currentTarget, it), { hov: true }),
     ib('star', t('Add to shortlist'), () => toggleStar(fk), { 'data-star': '' }),
-    opts.focus ? ib('shrink', t('Exit full screen (Esc)'), () => closeFocus()) : ib('expand', t('Full screen (Z)'), () => openFocus(fk)),
+    ...(opts.focus ? [fsModeBtn(ib), ib('shrink', t('Exit full screen (Esc)'), () => closeFocus())] : [ib('expand', t('Full screen (Z)'), () => openFocus(fk))]),
     ib('more', t('More'), (e) => cardMenu(e.currentTarget, c, it)),
   ];
   const sub = c.kind === 'shortlist' ? `${rnum(it.r.id)} ${it.r.title}` : '';
