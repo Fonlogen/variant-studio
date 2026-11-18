@@ -432,6 +432,11 @@ function buildCard(c, it, opts = {}) {
   if (!v.ready || (STATIC && !v.html && !v.url)) stage.append(h('div', { class: 'skeleton' }, t('The agent is writing this variant…')));
   else { const f = makeFrame(it, { role: opts.focus ? 'focus' : 'card' }); stage.append(f.wrap, zoomControl(f)); }
   card.append(stage);
+  if (bareOn(it.r) && !opts.focus) {
+    card.classList.add('bare');
+    card.append(h('button', { class: 'bare-btn', type: 'button', title: t('Variant options'), 'aria-label': t('Variant options'), 'aria-expanded': 'false',
+      onclick: () => openBare(card, true) }, h('b', {}, letterOf(c, it)), h('span', { html: I.more })));
+  }
   if (opts.grid) { const [c1, e1, s1] = resizeHandles(card, fk); stage.append(c1); card.append(e1, s1); card.classList.toggle('sized', !!cardSize(fk)); }
   const ann = h('ol', { class: 'ann' });
   const cm = h('textarea', { class: 'cm', rows: 1, placeholder: TEAM ? t('Your comment for the team…') : t('Note on this variant…') });
@@ -447,6 +452,16 @@ function buildCard(c, it, opts = {}) {
   setTimeout(() => updateBadges(fk));
   return card;
 }
+// frame-only cards keep their header in a floating bar, opened from the small button on the card
+function openBare(card, on) {
+  document.querySelectorAll('.card.bare.open').forEach(x => { if (x !== card || !on) { x.classList.remove('open'); x.querySelector('.bare-btn')?.setAttribute('aria-expanded', 'false'); } });
+  if (!on) return;
+  card.classList.add('open'); card.querySelector('.bare-btn').setAttribute('aria-expanded', 'true');
+  requestAnimationFrame(() => card.querySelector('.card-h button')?.focus({ preventScroll: true }));
+}
+addEventListener('pointerdown', (e) => { if (!e.target.closest('.card.bare.open, .menu, [popover]')) openBare(null, false); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.card.bare.open')) { e.stopPropagation(); const c = document.querySelector('.card.bare.open'); openBare(null, false); c.querySelector('.bare-btn')?.focus(); } }, true);
+function setBare(on) { S.bare = on; persist(); renderTopbar(); renderRound(true); }
 async function exportLogoSet(it) {
   if (STATIC) return toast(t('Exports need the studio server'));
   try {

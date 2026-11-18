@@ -426,6 +426,7 @@ function commands() {
   const add = (g, label, run, kbd) => L.push({ g, label, run, kbd });
   add(t('View'), t('Grid'), () => setLayout('grid'), 'G');
   add(t('View'), t('Full screen'), () => setLayout('focus'), 'F');
+  add(t('View'), t('Frame only (phones, windows, terminals)'), () => setBare(!S.bare));
   add(t('View'), t('Full screen: exclusive or inside the page'), () => setFsMode(S.fsMode === 'page' ? 'screen' : 'page'));
   add(t('View'), t('List'), () => setLayout('list'), 'L');
   add(t('View'), t('Compare: swipe'), () => { S.cmp.mode = 'swipe'; setLayout('compare'); }, 'X');

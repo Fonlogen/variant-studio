@@ -30,6 +30,7 @@ const I = {
   comment: sv('<path d="M4 5h16v11H9.5L5 20v-4H4z"/>'),
   expand: sv('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
   shrink: sv('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>'),
+  frame: sv('<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/>'),
   more: sv('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>', 'stroke-width="2.4"'),
   pick: sv('<path d="m4 3 14 7-6 1.8L9.5 18z"/><path d="m12.5 12.5 6.5 6.5"/>'),
   edit: sv('<path d="M15.5 4.5l4 4L9 19H5v-4z"/><path d="M13.5 6.5l4 4"/>'),
@@ -133,7 +134,7 @@ const S = {
   drafts: saved.drafts || {}, vdata: saved.vdata || {}, stars: saved.stars || [],
   drawer: saved.drawer !== false, ui: saved.ui || 'dark', lang: saved.lang || (['it', 'es', 'fr', 'ru'].find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en'),
   insp: !!saved.insp, inspTab: saved.inspTab || 'tune', notesAll: !!saved.notesAll, notesOpen: {}, cmOpen: {},
-  showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false, fsMode: saved.fsMode === 'page' ? 'page' : 'screen',
+  showDiscarded: {}, collapsed: saved.collapsed || {}, sendAudit: saved.sendAudit !== false, sendShots: saved.sendShots !== false, fsMode: saved.fsMode === 'page' ? 'page' : 'screen', bare: saved.bare !== false,
   notify: !!saved.notify, sound: saved.sound !== false, chipsOpen: !!saved.chipsOpen, myChips: saved.myChips || [], criteria: saved.criteria || [],
   fonts: saved.fonts || { heading: '', body: '' }, knobs: saved.knobs || {}, rstate: saved.rstate || {},
   ovScope: saved.ovScope || 'group', ovSize: saved.ovSize || 260, mapSubj: saved.mapSubj || '', mapSize: saved.mapSize || 260, voter: saved.voter || '', myVotes: saved.myVotes || {}, exportScale: saved.exportScale || 2,
@@ -143,7 +144,7 @@ const S = {
 const persist = () => store.save({
   layout: S.layout === 'focus' ? S.prevLayout : S.layout, vps: S.vps, zoom: S.zoom, cardZoom: S.cardZoom, overflow: S.overflow, theme: S.theme, canvas: S.canvas, canvasPicked: S.canvasPicked, sync: S.sync, device: S.device,
   cmpMode: S.cmp.mode, drafts: S.drafts, vdata: S.vdata, stars: S.stars, drawer: S.drawer, ui: S.ui, lang: S.lang, insp: S.insp, inspTab: S.inspTab, notesAll: S.notesAll,
-  collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, fsMode: S.fsMode, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
+  collapsed: S.collapsed, sendAudit: S.sendAudit, sendShots: S.sendShots, fsMode: S.fsMode, bare: S.bare, notify: S.notify, sound: S.sound, chipsOpen: S.chipsOpen, myChips: S.myChips, criteria: S.criteria,
   fonts: S.fonts, knobs: S.knobs, rstate: S.rstate, ovScope: S.ovScope, ovSize: S.ovSize, mapSubj: S.mapSubj, mapSize: S.mapSize, voter: S.voter, myVotes: S.myVotes, exportScale: S.exportScale,
   canvasColor: S.canvasColor, cardSizes: S.cardSizes, cardPreset: S.cardPreset, promptHidden: S.promptHidden,
 });
@@ -304,6 +305,8 @@ const deviceOn = (r) => S.device && !shelled(r) && ['mobile', 'tablet'].includes
 // ---------------- design-mode shells (terminal, phone, desktop window, logo previews) ----------------
 const SHELLED = ['tui', 'app', 'desktop', 'logo'];
 const shelled = (r) => SHELLED.includes(r?.design);
+// frame only: the card drops its chrome and canvas, so the phone or window sits straight on the gallery
+const bareOn = (r) => S.bare && shelled(r) && r.design !== 'logo';
 // round-wide options (S.rstate[round]) overridden per variant (S.rstate[round].by[variant])
 function shellOpts(r, vid) {
   const rs = S.rstate[r.id] || {};
@@ -330,7 +333,7 @@ const cardSize = (fk) => { const i = fk.indexOf('/'); return S.cardSizes[fk.slic
 function frameSrc(r, v) {
   if (v.url) return v.url;
   const rs = S.rstate[r.id] || {};
-  const so = shelled(r) ? '&so=' + encodeURIComponent(JSON.stringify(shellOpts(r, v.id))) : '';
+  const so = shelled(r) ? '&so=' + encodeURIComponent(JSON.stringify(shellOpts(r, v.id))) + (bareOn(r) ? '&bare=1' : '') : '';
   return `/v/${encodeURIComponent(r.id)}/${encodeURIComponent(v.file)}?round=${encodeURIComponent(r.id)}&variant=${encodeURIComponent(v.id)}&theme=${S.theme}&canvas=${encodeURIComponent(canvasValue())}${rs.state ? '&state=' + encodeURIComponent(rs.state) : ''}${rs.content ? '&content=' + encodeURIComponent(rs.content) : ''}${so}&t=${Math.round(v.mtime)}`;
 }
 function makeFrame(it, opts = {}) {
@@ -357,8 +360,9 @@ const postTo = (f, m) => { try { f.iframe.contentWindow.postMessage({ vsHost: tr
 function sendFrame(f) {
   const vd = vdata(f.it.fk);
   if (shelled(f.r)) {
+    f.iframe.style.colorScheme = S.theme; // same scheme as the shell page, or the browser paints an opaque backdrop behind it
     const st = $('#stage').clientHeight;
-    postTo(f, { type: 'shell', opts: shellOpts(f.r, f.v.id), labels: Object.fromEntries(SHELL_LABELS.map(k => [k, t(k)])), fit: f.thumb || f.role === 'layer' ? 0 : Math.max(320, st - (f.role === 'focus' ? 270 : 230)) });
+    postTo(f, { type: 'shell', bare: bareOn(f.r), opts: shellOpts(f.r, f.v.id), labels: Object.fromEntries(SHELL_LABELS.map(k => [k, t(k)])), fit: f.thumb || f.role === 'layer' ? 0 : Math.max(320, st - (f.role === 'focus' ? 270 : 230)) });
   }
   postTo(f, { type: 'theme', value: S.theme });
   postTo(f, { type: 'canvas', value: canvasValue() });

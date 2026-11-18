@@ -23,3 +23,5 @@
 2026-11-18 · Audit tab: "Chiedi all agente di risolverli" / "Risolvi in tutte le varianti" → decision action fix_a11y, agent edits files in place, no new round
 2026-11-18 · Logo accent = ORANGE (lilac copies removed)
 2026-11-18 · Full screen has 2 modes, per viewer (S.fsMode): screen = Fullscreen API (default), page = expands to page height keeping the studio chrome. Toggle in the focus card + command palette
+2026-11-18 · Grid: cards in a row share height (stretch), resized ones keep theirs. Stage scrollbar-gutter stable + width-only ResizeObserver (fixed oscillation). Fixed-width components wider than the card are scaled (frame reports natural width)
+2026-11-18 · Design modes (tui/app/desktop/logo): legacy device frame off, --viewports ignored, rules say file = only the inside of the frame, no boards/devices

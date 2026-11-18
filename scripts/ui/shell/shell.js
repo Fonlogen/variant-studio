@@ -36,12 +36,13 @@ function canvasName(c) { if (/^#[0-9a-f]{3,8}$/i.test(c)) { document.documentEle
       return;
     }
     if (!d.vsHost) return;
-    if (d.type === 'shell') { S.opts = d.opts || {}; if (d.labels) S.labels = d.labels; if (d.fit) S.fitH = d.fit; S.render(); return; }
+    if (d.type === 'shell') { document.documentElement.classList.toggle('vs-bare', !!d.bare); S.opts = d.opts || {}; if (d.labels) S.labels = d.labels; if (d.fit) S.fitH = d.fit; S.render(); return; }
     if (d.type === 'canvas') { S.canvas = canvasName(d.value || ''); S.render(); return; } // the shell paints its own backdrop
     if (d.type === 'theme') { S.theme = d.value; scheme(); S.render(); }
     try { S.inner?.contentWindow.postMessage(d, '*'); } catch {}
   });
   // an iframe whose color-scheme differs from its parent's gets an opaque backdrop: keep ours equal to the variant's
+  document.documentElement.classList.toggle('vs-bare', qs.get('bare') === '1');
   const scheme = () => { document.documentElement.style.colorScheme = S.theme === 'dark' ? 'dark' : 'light'; };
   scheme();
   let lastH = 0;

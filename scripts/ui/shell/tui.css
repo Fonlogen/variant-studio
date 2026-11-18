@@ -4,7 +4,7 @@ html, body { margin: 0; background: transparent; }
 body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 :where(#vs-shell) { --mono: var(--vs-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); --op: .58; --blur: 24px; --fs: 13px;
   --fg: #e6e9f2; --dim: #9aa0b4; --line: rgba(255,255,255,.08); --acc: #c6a6ff; --acc2: #3a3f62; --ok: #8fdca6; --win: 22, 24, 38; }
-.st { position: relative; padding: 14px; border-radius: 14px; overflow: hidden; background: var(--wall) center / cover no-repeat, #1b1d3a; }
+.st { position: relative; padding: 14px; overflow: hidden; background: var(--wall) center / cover no-repeat, #1b1d3a; }
 .st::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 50% 120%, rgba(10,10,25,.45), transparent 60%); }
 .win { position: relative; z-index: 1; border-radius: 10px; color: var(--fg); background: rgba(var(--win), var(--op));
   -webkit-backdrop-filter: blur(var(--blur)) saturate(160%); backdrop-filter: blur(var(--blur)) saturate(160%);
@@ -119,3 +119,10 @@ body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -
 .s-wt .tabs .dd { font-size: 12px; padding: 0 6px; }
 .s-wt .cap { color: #fff; }
 .s-wt .tabs .cap { align-self: stretch; }
+
+/* frame only: the window alone; its acrylic shows a blurred copy of the wallpaper instead of the backdrop */
+html.vs-bare .st { background: none; padding: 0; }
+html.vs-bare .st::after { display: none; }
+html.vs-bare .win { background: none; overflow: hidden; isolation: isolate; }
+html.vs-bare .win::before { content: ""; position: absolute; inset: calc(var(--blur) * -2); z-index: -1; pointer-events: none;
+  background: var(--wall) center / cover no-repeat, #1b1d3a; filter: blur(var(--blur)) saturate(160%); box-shadow: inset 0 0 0 9999px rgba(var(--win), var(--op)); }

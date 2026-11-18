@@ -109,6 +109,8 @@ function shellPickInto(box, r) {
     onclick: () => { SP = { r: round(spBtn.dataset.round), vid: null, anchor: spBtn }; } });
   paintPickBtn(r);
   box.append(spBtn);
+  if (r.design !== 'logo') box.append(h('button', { class: 'pillbtn', type: 'button', 'aria-pressed': String(S.bare), title: t('Frame only: hide the card and its background, options on the small button'), onclick: () => setBare(!S.bare) },
+    h('span', { html: I.frame || I.expand }), t('Frame only')));
 }
 function openShellPick(anchor, r, vid) {
   const el = spEl();

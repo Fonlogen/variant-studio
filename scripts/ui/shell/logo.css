@@ -2,7 +2,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; background: transparent; }
 body { font: 12px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: #1d1e22; -webkit-font-smoothing: antialiased; }
-.lg { border-radius: 14px; overflow: hidden; background: #f4f4f6; }
+.lg { overflow: hidden; background: #f4f4f6; }
 .lg.c-dark { background: #0f1013; color: #eceef2; } .lg.c-white { background: #fff; }
 .mark { display: block; width: 100%; border: 0; }
 .use { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px; border-top: 1px solid rgba(0,0,0,.08); }
