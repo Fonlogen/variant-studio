@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — rail, drawer, top bar and the main views.
+// Variant Studio 4.0 — rail, drawer, top bar and the main views.
 'use strict';
 
 // ---------------- rail + drawer ----------------
@@ -131,7 +131,9 @@ function renderTopbar(c = ctx()) {
     }
   }
   icon($('#themeBtn'), S.theme === 'dark' ? 'moon' : 'sun'); $('#themeBtn').title = t('Variant theme: light / dark (D)');
-  $('#themeBtn').style.display = special ? 'none' : '';
+  $('#vcBox').style.display = special ? 'none' : '';
+  paintBgButton();
+  const qb = $('#qrBtn'); qb.style.display = TEAM || STATIC ? 'none' : ''; qb.innerHTML = I.qr + `<span>${t('Phone')}</span>`; qb.title = t('Open on your phone: QR code, PIN and link');
   for (const [id, m] of [['#pickBtn', 'pick'], ['#editBtn', 'edit']]) { $(id).setAttribute('aria-pressed', String(S.mode === m)); $(id).style.display = TEAM || special ? 'none' : ''; }
   $('#inspBtn').setAttribute('aria-pressed', String(S.insp)); $('#inspBtn').style.display = TEAM ? 'none' : '';
   const crumb = $('#crumb'); crumb.innerHTML = '';
@@ -162,6 +164,10 @@ function vpMenu(anchor) {
     { label: t('Device frames on mobile and tablet'), checked: S.device, run: () => { S.device = !S.device; persist(); renderRound(true); } },
     { label: t('Sync scroll'), checked: S.sync, run: () => { S.sync = !S.sync; persist(); } },
     { label: t('Full height (no inner scroll)'), checked: S.overflow, run: () => setOverflow(!S.overflow) },
+    { sep: true },
+    { head: t('Card size') },
+    { custom: (row) => { const sg = h('div', { class: 'seg', style: 'width:100%' }); seg(sg, [['auto', t('Auto')], ['s', 'S'], ['m', 'M'], ['l', 'L'], ['xl', 'XL']], S.cardPreset, (v) => { hideMenu(); setCardPreset(v); }); [...sg.children].forEach(b => { b.style.flex = '1'; }); row.append(sg); } },
+    { label: t('Reset resized cards'), icon: 'resize', disabled: !Object.keys(S.cardSizes[r?.id] || {}).length || null, run: () => resetCardSizes(r) },
     { sep: true },
     { head: t('Zoom') },
     { label: t('Zoom in'), kbd: '+', icon: 'plus', run: () => zoomAll(1) },
@@ -260,19 +266,86 @@ function buildGrid(c) {
   const kinds = new Set(c.items.map(it => it.r.kind));
   const n = c.items.length;
   const cols = kinds.has('component') && kinds.size === 1 ? Math.min(n, 4) : Math.min(n, 3);
-  grid.style.setProperty('--cols', Math.max(1, cols));
-  c.items.forEach(it => grid.append(buildCard(c, it)));
+  grid.dataset.cols = Math.max(1, cols);
+  c.items.forEach(it => grid.append(buildCard(c, it, { grid: true })));
   return grid;
 }
 
-// Full screen: one variant large, the others in a filmstrip underneath.
+// ---------------- card sizes ----------------
+// Per card: drag the corner (width and height), the right edge (width) or the bottom edge (height). Width snaps to
+// the 12-column grid, height is the preview's own; both are remembered per round in this browser. Double-click resets.
+function setCardSize(fk, patch) {
+  const i = fk.indexOf('/'); const rid = fk.slice(0, i), vid = fk.slice(i + 1);
+  const all = (S.cardSizes[rid] ||= {});
+  const o = { ...(all[vid] || {}), ...patch };
+  for (const k of Object.keys(o)) if (o[k] == null) delete o[k];
+  if (Object.keys(o).length) all[vid] = o; else delete all[vid];
+  if (!Object.keys(all).length) delete S.cardSizes[rid];
+}
+function setCardPreset(v) {
+  S.cardPreset = v;
+  for (const r of vpRounds()) for (const vid of Object.keys(S.cardSizes[r.id] || {})) setCardSize(r.id + '/' + vid, { span: null });
+  persist(); layoutFrames(); requestAnimationFrame(layoutFrames);
+}
+function resetCardSizes(r) { if (!r) return; delete S.cardSizes[r.id]; persist(); document.querySelectorAll('.card.sized').forEach(c => c.classList.remove('sized')); layoutFrames(); requestAnimationFrame(layoutFrames); }
+function resizeHandles(card, fk) {
+  const relayout = () => { card.classList.toggle('sized', !!cardSize(fk)); applySpans(); for (const f of framesOf(fk)) if (f.role === 'card') layoutFrame(f); };
+  const make = (dir) => {
+    const el = dir === 'c'
+      ? h('button', { class: 'rz c', html: I.resize, title: t('Resize (drag; double-click resets)'), 'aria-label': t('Resize card: arrow keys change width and height') })
+      : h('div', { class: 'rz ' + dir, 'aria-hidden': 'true', 'data-no-tip': '' });
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
+      const grid = card.parentElement, gap = parseFloat(getComputedStyle(grid).columnGap) || 16;
+      const colW = (grid.clientWidth - 11 * gap) / 12;
+      const w0 = card.getBoundingClientRect().width, wrap = card.querySelector('.pv'), h0 = wrap ? wrap.getBoundingClientRect().height : 240;
+      const x0 = e.clientX, y0 = e.clientY;
+      card.classList.add('resizing');
+      let raf = 0;
+      const move = (ev) => {
+        const p = {};
+        if (dir !== 's') p.span = Math.min(12, Math.max(2, Math.round((w0 + ev.clientX - x0 + gap) / (colW + gap))));
+        if (dir !== 'e') p.h = Math.round(Math.max(100, Math.min(4000, h0 + ev.clientY - y0)));
+        setCardSize(fk, p);
+        cancelAnimationFrame(raf); raf = requestAnimationFrame(relayout);
+      };
+      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); card.classList.remove('resizing'); persist(); requestAnimationFrame(layoutFrames); };
+      el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    });
+    el.addEventListener('dblclick', (e) => { e.stopPropagation(); setCardSize(fk, dir === 'e' ? { span: null } : dir === 's' ? { h: null } : { span: null, h: null }); persist(); relayout(); requestAnimationFrame(layoutFrames); });
+    if (dir === 'c') el.addEventListener('keydown', (e) => {
+      const cur = cardSize(fk) || {}, wrap = card.querySelector('.pv');
+      const span = cur.span || Number(getComputedStyle(card).getPropertyValue('--span')) || 4, hh = cur.h || (wrap ? wrap.getBoundingClientRect().height : 240);
+      const step = { ArrowLeft: { span: Math.max(2, span - 1) }, ArrowRight: { span: Math.min(12, span + 1) }, ArrowUp: { h: Math.max(100, hh - 40) }, ArrowDown: { h: hh + 40 } }[e.key];
+      if (!step) return; e.preventDefault(); e.stopPropagation(); setCardSize(fk, step); persist(); relayout();
+    });
+    return el;
+  };
+  return [make('c'), make('e'), make('s')];
+}
+
+// Full screen: one variant over the whole screen (Fullscreen API on the document, so menus, toasts and the prompt
+// stay usable). When the browser refuses (no user gesture, iframe, iPhone) the same layout is a fixed overlay.
+function enterFullscreen() {
+  document.body.classList.add('fs');
+  const el = document.documentElement;
+  if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+}
+function leaveFullscreen() {
+  document.body.classList.remove('fs');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+// Esc in real full screen is taken by the browser: follow it back to the gallery
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.layout === 'focus') closeFocus(); else requestAnimationFrame(layoutFrames); });
 function openFocus(fk) {
   if (!fk) return;
   if (S.layout !== 'focus') { S.prevLayout = [...SPECIAL_VIEWS, 'focus'].includes(S.layout) ? 'grid' : S.layout; S.scrollBack = $('#stage').scrollTop; }
   S.layout = 'focus'; S.focusFk = fk; S.active = fk;
+  enterFullscreen();
   renderRail(); renderRound(true); $('#stage').scrollTop = 0;
 }
-function closeFocus() { S.layout = S.prevLayout || 'grid'; renderRail(); renderRound(true); requestAnimationFrame(() => $('#stage').scrollTop = S.scrollBack || 0); }
+function closeFocus() { leaveFullscreen(); S.layout = S.prevLayout || 'grid'; renderRail(); renderRound(true); requestAnimationFrame(() => $('#stage').scrollTop = S.scrollBack || 0); }
 function stepFocus(dir) {
   const c = ctx(); if (!c) return;
   const n = c.items.length; const i = c.items.findIndex(it => it.fk === S.focusFk);
@@ -283,17 +356,6 @@ function buildFocus(c) {
   const it = c.items[idx];
   const wrap = h('div', { class: 'focus' });
   wrap.append(buildCard(c, it, { focus: true }));
-  if (c.items.length > 1) {
-    const film = h('div', { class: 'film' });
-    const d = draft(c.key);
-    c.items.forEach((x, i) => {
-      const box = h('div', { class: 'box' });
-      if (x.v.ready) box.append(makeFrame(x, { role: 'thumb' }).wrap);
-      film.append(h('button', { class: 'th' + (d.selected.includes(x.key) ? ' sel' : ''), 'aria-current': String(i === idx), title: labelOf(x), onclick: () => { S.focusFk = S.active = x.fk; renderRound(); } },
-        box, h('span', {}, h('b', {}, letterOf(c, x)), labelOf(x))));
-    });
-    wrap.append(film);
-  }
   return wrap;
 }
 
@@ -315,7 +377,7 @@ function buildApproved(c) {
     status, h('span', { class: 'sp' }),
     TEAM ? null : revoke,
     others > 0 ? h('button', { class: 'btn sm ghost', title: t('See the other variants of this round to reuse them'), html: I.eye + `<span>${t('Show discarded ({n})', { n: others })}</span>`, onclick: () => { S.showDiscarded[c.r.id] = true; renderRound(true); } }) : null);
-  const g = h('div', { class: 'grid' }); g.style.setProperty('--cols', 1); g.append(buildCard(c, it));
+  const g = h('div', { class: 'grid one' }); g.append(buildCard(c, it));
   return [bar, g];
 }
 
@@ -354,6 +416,7 @@ function buildCard(c, it, opts = {}) {
     ib('down', t('Dislike'), () => rate(fk, -1), { 'data-rate': 'down', hov: true }),
     v.notes ? ib('info', t('Description (N for all)'), () => { S.notesOpen[fk] = !S.notesOpen[fk]; updateCards(); }, { 'data-notes': '', hov: true }) : null,
     ib('comment', t('Note on this variant'), () => { S.cmOpen[fk] = !S.cmOpen[fk]; updateCards(); if (S.cmOpen[fk]) setTimeout(() => card.querySelector('textarea.cm')?.focus()); }, { 'data-cm': '' }),
+    STATIC ? null : ib('qr', t('Open this variant on your phone'), (e) => openQr(e.currentTarget, it), { hov: true }),
     ib('star', t('Add to shortlist'), () => toggleStar(fk), { 'data-star': '' }),
     opts.focus ? ib('shrink', t('Exit full screen (Esc)'), () => closeFocus()) : ib('expand', t('Full screen (Z)'), () => openFocus(fk)),
     ib('more', t('More'), (e) => cardMenu(e.currentTarget, c, it)),
@@ -377,6 +440,7 @@ function buildCard(c, it, opts = {}) {
   if (!v.ready || (STATIC && !v.html && !v.url)) stage.append(h('div', { class: 'skeleton' }, t('The agent is writing this variant…')));
   else { const f = makeFrame(it, { role: opts.focus ? 'focus' : 'card' }); stage.append(f.wrap, zoomControl(f)); }
   card.append(stage);
+  if (opts.grid) { const [c1, e1, s1] = resizeHandles(card, fk); stage.append(c1); card.append(e1, s1); card.classList.toggle('sized', !!cardSize(fk)); }
   const ann = h('ol', { class: 'ann' });
   const cm = h('textarea', { class: 'cm', rows: 1, placeholder: TEAM ? t('Your comment for the team…') : t('Note on this variant…') });
   cm.value = TEAM ? (myVote(it)?.comment || '') : (vd.comment || '');

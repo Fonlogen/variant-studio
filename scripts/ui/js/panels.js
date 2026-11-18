@@ -1,4 +1,4 @@
-// Variant Studio 3.5 — inspector, element popover, settings / team / help sheets, command palette.
+// Variant Studio 4.0 — inspector, element popover, settings / team / help sheets, command palette.
 'use strict';
 
 const FONTS = ['Inter', 'Instrument Sans', 'Figtree', 'Onest', 'Manrope', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Sora', 'Space Grotesk', 'Bricolage Grotesque', 'Work Sans', 'IBM Plex Sans', 'Geologica', 'Fraunces', 'Instrument Serif', 'Newsreader', 'Source Serif 4', 'Lora', 'Playfair Display', 'DM Serif Display', 'JetBrains Mono', 'Space Mono'];
@@ -248,15 +248,16 @@ function openSettings(focus) {
       ...LANGS.map(l => h('button', { title: l.name, 'aria-label': l.name, 'aria-pressed': String(S.lang === l.code), lang: l.code, html: l.flag, onclick: () => setLang(l.code) })));
     const uiSeg = h('div', { class: 'seg' }); seg(uiSeg, [['dark', t('Dark')], ['light', t('Light')]], S.ui, (v) => { setUi(v); openSettings(); });
     const cvSeg = h('select', { class: 'tx', 'aria-label': t('Canvas behind variants') });
-    [['light', t('Soft grey')], ['white', t('White')], ['dark', t('Dark')], ['checker', t('Transparent')], ['none', t('Page background')]].forEach(([v, l]) => cvSeg.append(h('option', { value: v, selected: S.canvas === v }, l)));
-    cvSeg.onchange = () => { S.canvas = cvSeg.value; persist(); broadcastFrames(); };
+    [...CANVASES().map(([v, l]) => [v, l]), ['white', t('White')], ['none', t('Page background')]].forEach(([v, l]) => cvSeg.append(h('option', { value: v, selected: S.canvas === v }, l)));
+    cvSeg.onchange = () => setCanvas(cvSeg.value);
     b.append(h('h4', {}, t('Studio')),
       h('div', { class: 'switch' }, h('span', {}, t('Language')), langSeg),
       h('div', { class: 'switch' }, h('span', {}, t('Studio theme')), uiSeg),
       h('div', { class: 'switch' }, h('span', {}, t('Canvas behind variants')), cvSeg),
       sw(t('Device frames on mobile and tablet'), S.device, (v) => { S.device = v; persist(); renderRound(true); }),
       sw(t('Sync scroll between previews'), S.sync, (v) => { S.sync = v; persist(); }),
-      sw(t('Full height (no inner scroll)'), S.overflow, (v) => { S.overflow = v; persist(); layoutFrames(); }));
+      sw(t('Full height (no inner scroll)'), S.overflow, (v) => { S.overflow = v; persist(); layoutFrames(); }),
+      TEAM ? null : sw(t('Show the prompt bar'), !S.promptHidden, (v) => { S.promptHidden = !v; persist(); renderDock(); }, t('Press / to show or hide it.')));
     if (!TEAM && !STATIC && S.data.settings) b.append(genSection());
     b.append(h('h4', {}, t('Notifications')),
       sw(t('Notify me when new variants are ready'), S.notify, async (v) => {
@@ -435,6 +436,10 @@ function commands() {
   add(t('View'), t('Variant theme: {x}', { x: S.theme === 'light' ? t('dark') : t('light') }), () => setTheme(S.theme === 'light' ? 'dark' : 'light'), 'D');
   add(t('View'), (S.notesAll ? t('Hide') : t('Show')) + ' ' + t('all descriptions'), toggleNotes, 'N');
   add(t('View'), (S.sync ? t('Disable') : t('Enable')) + ' ' + t('sync scroll'), () => { S.sync = !S.sync; persist(); });
+  CANVASES().filter(([v]) => v !== 'custom').forEach(([v, l]) => add(t('View'), t('Background: {x}', { x: l }), () => setCanvas(v)));
+  [['auto', t('Auto')], ['s', 'S'], ['m', 'M'], ['l', 'L'], ['xl', 'XL']].forEach(([v, l]) => add(t('View'), t('Card size: {x}', { x: l }), () => setCardPreset(v)));
+  if (!TEAM) add(t('Studio'), S.promptHidden ? t('Show the prompt bar') : t('Hide the prompt bar'), () => { if (S.promptHidden) { S.promptHidden = false; persist(); renderDock(); } else setPromptHidden(true); }, '/');
+  if (!TEAM && !STATIC) add(t('Studio'), t('Open on your phone'), () => openQr($('#qrBtn')));
   add(t('Studio'), t('Studio theme: {x}', { x: S.ui === 'dark' ? t('light') : t('dark') }), () => setUi(S.ui === 'dark' ? 'light' : 'dark'), 'U');
   LANGS.filter(l => l.code !== S.lang).forEach(l => add(t('Studio'), t('Language: {x}', { x: l.name }), () => setLang(l.code)));
   add(t('Studio'), t('Rounds panel'), () => toggleDrawer(), 'R');

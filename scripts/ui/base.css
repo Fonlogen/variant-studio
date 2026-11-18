@@ -27,8 +27,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---- canvas behind the variant ---- */
 html[data-vs-canvas="light"] body { background: #f4f4f6; }
-html[data-vs-canvas="dark"] body { background: #0c0c0f; }
+html[data-vs-canvas="gray"] body { background: #c9c9cf; }
+html[data-vs-canvas="dark"] body { background: #232328; }
+html[data-vs-canvas="black"] body { background: #000; }
 html[data-vs-canvas="white"] body { background: #fff; }
+html[data-vs-canvas="custom"] body { background: var(--vs-canvas, #fff); }
 html[data-vs-canvas="checker"] body {
   background-color: #fff;
   background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%),

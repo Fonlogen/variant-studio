@@ -9,7 +9,12 @@
   // ---- theme / canvas (from query, then live via messages) ----
   const html = document.documentElement;
   function applyTheme(t) { if (!t) return; html.dataset.theme = t; html.style.colorScheme = t; html.classList.toggle('dark', t === 'dark'); }
-  function applyCanvas(c) { if (c) html.dataset.vsCanvas = c; else delete html.dataset.vsCanvas; }
+  // a preset name (light, gray, dark, black, white, checker) or a hex colour picked by the user
+  function applyCanvas(c) {
+    if (c && /^#[0-9a-f]{3,8}$/i.test(c)) { html.dataset.vsCanvas = 'custom'; html.style.setProperty('--vs-canvas', c); return; }
+    html.style.removeProperty('--vs-canvas');
+    if (c) html.dataset.vsCanvas = c; else delete html.dataset.vsCanvas;
+  }
   function applyVsAttr(name, v) { if (v) html.setAttribute('data-vs-' + name, v); else html.removeAttribute('data-vs-' + name); }
   applyTheme(qs.get('theme')); applyCanvas(qs.get('canvas'));
   applyVsAttr('state', qs.get('state')); applyVsAttr('content', qs.get('content'));
